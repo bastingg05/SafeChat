@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeChat — Malayalam Hate Speech Guard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:      #0a0e1a;
+      --bg-panel:     #111827;
+      --bg-sidebar:   #0d1117;
+      --bg-input:     #1c2333;
+      --bubble-me:    #005c4b;
+      --bubble-them:  #1f2937;
+      --green:        #00a884;
+      --green-light:  #25d366;
+      --red:          #ef4444;
+      --orange:       #f59e0b;
+      --yellow:       #eab308;
+      --text-primary: #e9edef;
+      --text-muted:   #8696a0;
+      --border:       rgba(255,255,255,0.07);
+      --radius:       12px;
+      --shadow:       0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* ── Layout ──────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── Sidebar ─────────────────────────────────── */
+    .sidebar {
+      width: 340px;
+      min-width: 280px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .app-logo {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--green), #128c7e);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px rgba(0,168,132,0.3);
+    }
+
+    .app-title { font-size: 1.05rem; font-weight: 700; }
+    .app-sub   { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+
+    /* Stats panel */
+    .stats-panel {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat-card {
+      background: var(--bg-input);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-1px); }
+    .stat-val  { font-size: 1.4rem; font-weight: 700; }
+    .stat-lbl  { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .stat-card.green .stat-val { color: var(--green-light); }
+    .stat-card.red   .stat-val { color: var(--red); }
+    .stat-card.orange .stat-val { color: var(--orange); }
+    .stat-card.blue  .stat-val { color: #60a5fa; }
+
+    /* Contact list item */
+    .contact-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      background: var(--bg-panel);
+    }
+    .contact-item.active { background: rgba(0,168,132,0.12); }
+
+    .avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700; flex-shrink: 0;
+    }
+    .av-green  { background: linear-gradient(135deg,#00c9a7,#00a884); color: #fff; }
+    .av-blue   { background: linear-gradient(135deg,#4f8ef7,#3b69d0); color: #fff; }
+    .av-purple { background: linear-gradient(135deg,#a78bfa,#7c3aed); color: #fff; }
+
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name { font-size: 0.95rem; font-weight: 600; }
+    .contact-last { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+    .online-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--green-light);
+      box-shadow: 0 0 6px var(--green-light);
+      flex-shrink: 0;
+    }
+
+    /* Feedback log */
+    .feedback-section {
+      flex: 1; overflow-y: auto; padding: 12px;
+    }
+    .feedback-title {
+      font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.8px; padding: 4px 4px 10px; font-weight: 600;
+    }
+    .feedback-item {
+      background: var(--bg-input); border-radius: 8px; padding: 8px 10px;
+      margin-bottom: 6px; border-left: 3px solid var(--red);
+      font-size: 0.78rem;
+    }
+    .feedback-item .fb-text { color: var(--text-primary); margin-bottom: 3px; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .feedback-item .fb-meta { color: var(--text-muted); font-size: 0.70rem; }
+    .no-feedback { color: var(--text-muted); font-size: 0.8rem; text-align:center; padding:20px 0; }
+
+    /* ── Chat Area ───────────────────────────────── */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(0,168,132,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(79,142,247,0.04) 0%, transparent 60%);
+      overflow: hidden;
+    }
+
+    /* Chat header */
+    .chat-header {
+      padding: 12px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+      backdrop-filter: blur(12px);
+    }
+    .chat-header .avatar { width: 40px; height: 40px; }
+    .chat-contact-name { font-size: 1rem; font-weight: 600; }
+    .chat-status { font-size: 0.75rem; color: var(--green-light); }
+
+    .header-badge {
+      margin-left: auto;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem; font-weight: 600;
+      background: rgba(0,168,132,0.15);
+      color: var(--green-light);
+      border: 1px solid rgba(0,168,132,0.3);
+    }
+
+    /* Messages container */
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scroll-behavior: smooth;
+    }
+
+    .messages-container::-webkit-scrollbar { width: 4px; }
+    .messages-container::-webkit-scrollbar-track { background: transparent; }
+    .messages-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    /* Date divider */
+    .date-divider {
+      text-align: center;
+      margin: 10px 0;
+    }
+    .date-divider span {
+      background: rgba(0,0,0,0.4);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* ── Message Bubble ───────────────────────────── */
+    .msg-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 72%;
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity:0; transform: translateY(8px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .msg-wrapper.me    { align-self: flex-end; align-items: flex-end; }
+    .msg-wrapper.other { align-self: flex-start; align-items: flex-start; }
+
+    .msg-username {
+      font-size: 0.70rem; color: var(--green); font-weight: 600;
+      margin-bottom: 3px; padding-left: 4px;
+    }
+    .msg-wrapper.me .msg-username { color: #60a5fa; }
+
+    .msg-bubble {
+      position: relative;
+      padding: 8px 12px 22px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      word-break: break-word;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .msg-wrapper.me    .msg-bubble { background: var(--bubble-me);   border-bottom-right-radius: 3px; }
+    .msg-wrapper.other .msg-bubble { background: var(--bubble-them); border-bottom-left-radius: 3px; }
+
+    .msg-time {
+      position: absolute; bottom: 5px; right: 10px;
+      font-size: 0.65rem; color: rgba(255,255,255,0.45);
+    }
+
+    /* ── Severity Styles ──────────────────────────── */
+
+    /* Mild — yellow warning badge, slight blur */
+    .msg-bubble.mild .msg-text { filter: blur(0px); }
+    .msg-bubble.mild { border: 1px solid rgba(234,179,8,0.35); }
+
+    /* High — orange, blur 4px */
+    .msg-bubble.high .msg-text { filter: blur(4px); transition: filter 0.3s; user-select: none; }
+    .msg-bubble.high.revealed .msg-text { filter: blur(0); }
+    .msg-bubble.high { border: 1px solid rgba(245,158,11,0.4); }
+
+    /* Extreme — red, full blur */
+    .msg-bubble.extreme .msg-text { filter: blur(6px); transition: filter 0.3s; user-select: none; }
+    .msg-bubble.extreme.revealed .msg-text { filter: blur(0); }
+    .msg-bubble.extreme { border: 1px solid rgba(239,68,68,0.5); }
+
+    /* Warning overlay */
+    .warn-overlay {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      margin-top: 4px;
+      font-size: 0.78rem;
+    }
+    .warn-overlay.mild    { background: rgba(234,179,8,0.12);  color: #fcd34d; border: 1px solid rgba(234,179,8,0.3); }
+    .warn-overlay.high    { background: rgba(245,158,11,0.14); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); }
+    .warn-overlay.extreme { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+
+    .warn-icon { font-size: 1rem; flex-shrink: 0; }
+    .warn-body { flex:1; }
+    .warn-label { font-weight: 700; letter-spacing: 0.3px; }
+    .warn-score { font-size: 0.70rem; opacity: 0.8; }
+
+    .reveal-btn, .report-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 5px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600;
+      cursor: pointer; border: none; outline: none;
+      transition: all 0.2s;
+    }
+    .reveal-btn {
+      background: rgba(255,255,255,0.1); color: #e2e8f0;
+      margin-right: 5px;
+    }
+    .reveal-btn:hover { background: rgba(255,255,255,0.18); }
+
+    .report-btn {
+      background: rgba(239,68,68,0.2); color: #fca5a5;
+      border: 1px solid rgba(239,68,68,0.35);
+    }
+    .report-btn:hover { background: rgba(239,68,68,0.35); }
+    .report-btn.done  { background: rgba(239,68,68,0.08); color: #6b7280; cursor: default; border-color: transparent; }
+
+    /* Banned banner */
+    .banned-banner {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px;
+      background: rgba(239,68,68,0.18);
+      border: 1px solid rgba(239,68,68,0.4);
+      border-radius: 8px;
+      margin-bottom: 4px;
+      font-size: 0.78rem; color: #f87171; font-weight: 600;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: none; align-self: flex-start;
+      background: var(--bubble-them);
+      border-radius: 12px; border-bottom-left-radius: 3px;
+      padding: 10px 14px;
+      gap: 5px; align-items: center;
+    }
+    .typing-indicator.active { display: flex; }
+    .typing-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-muted);
+      animation: typeBounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typeBounce {
+      0%,60%,100% { transform: translateY(0); }
+      30%          { transform: translateY(-5px); }
+    }
+
+    /* ── Input Bar ───────────────────────────────── */
+    .input-bar {
+      padding: 12px 16px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .msg-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 11px 18px;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none; overflow-y: hidden; max-height: 120px;
+    }
+    .msg-input:focus { border-color: var(--green); }
+    .msg-input::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--green);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(0,168,132,0.4);
+    }
+    .send-btn:hover { background: var(--green-light); transform: scale(1.05); }
+    .send-btn:active { transform: scale(0.95); }
+    .send-btn:disabled { background: #374151; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Toast Notifications ──────────────────────── */
+    #toast-container {
+      position: fixed; top: 20px; right: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 1000; pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.82rem; font-weight: 500;
+      backdrop-filter: blur(16px);
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+      pointer-events: none;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: var(--shadow);
+      max-width: 300px;
+    }
+    .toast.warn    { background: rgba(245,158,11,0.9);  color: #fff; }
+    .toast.danger  { background: rgba(239,68,68,0.9);   color: #fff; }
+    .toast.success { background: rgba(0,168,132,0.9);   color: #fff; }
+    .toast.info    { background: rgba(79,142,247,0.9);  color: #fff; }
+
+    @keyframes toastIn  { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: none; } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateX(30px); } }
+
+    /* ── Scrollbar ───────────────────────────────── */
+    .feedback-section::-webkit-scrollbar { width: 3px; }
+    .feedback-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="app-shell">
+
+  <!-- ══ SIDEBAR ══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="app-logo">🛡️</div>
+      <div>
+        <div class="app-title">SafeChat</div>
+        <div class="app-sub">Malayalam Hate Speech Guard</div>
+      </div>
+    </div>
+
+    <!-- Live stats -->
+    <div class="stats-panel">
+      <div class="stat-card blue">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-lbl">Total Messages</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-val" id="stat-safe">0</div>
+        <div class="stat-lbl">Safe</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-val" id="stat-offensive">0</div>
+        <div class="stat-lbl">Flagged</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-val" id="stat-reported">0</div>
+        <div class="stat-lbl">Reported</div>
+      </div>
+    </div>
+
+    <!-- Contact (single chat) -->
+    <div class="contact-item active">
+      <div class="avatar av-green">M</div>
+      <div class="contact-info">
+        <div class="contact-name">Malayalam Chat Room</div>
+        <div class="contact-last" id="last-msg">Start chatting…</div>
+      </div>
+      <div class="online-dot"></div>
+    </div>
+
+    <!-- Reported feedback log -->
+    <div class="feedback-section">
+      <div class="feedback-title">📋 Feedback Dataset Log</div>
+      <div id="feedback-list">
+        <div class="no-feedback">No reports yet.<br>Click "Report" on flagged messages.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══ CHAT AREA ══════════════════════════════════════ -->
+  <main class="chat-area">
+
+    <!-- Header -->
+    <div class="chat-header">
+      <div class="avatar av-green" style="width:40px;height:40px;font-size:1rem;">M</div>
+      <div>
+        <div class="chat-contact-name">Malayalam Chat Room</div>
+        <div class="chat-status">🟢 AI Moderator Active</div>
+      </div>
+      <div class="header-badge">🛡️ Guard ON</div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-container" id="messages-container">
+      <div class="date-divider"><span>Today</span></div>
+      <!-- messages rendered here by JS -->
+      <div class="typing-indicator" id="typing">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="input-bar">
+      <textarea
+        id="msg-input"
+        class="msg-input"
+        placeholder="Type a Malayalam / Manglish message…"
+        rows="1"
+      ></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()" title="Send">
+        ➤
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const API = 'http://127.0.0.1:5000';
+  const ME_USERNAME = 'You';
+  const feedbackItems = {};   // id → element in sidebar
+
+  /* ─── Severity config ────────────────────────────── */
+  const SEVERITY = {
+    safe:    { icon: '',    warnClass: '',        bannerShow: false },
+    mild:    { icon: '⚠️',  warnClass: 'mild',    bannerShow: false },
+    high:    { icon: '🔶',  warnClass: 'high',    bannerShow: false },
+    extreme: { icon: '🚫',  warnClass: 'extreme', bannerShow: true  },
+  };
+
+  /* ─── Utility: toast ──────────────────────────────── */
+  function showToast(msg, type = 'info') {
+    const icons = { warn:'⚠️', danger:'🚫', success:'✅', info:'ℹ️' };
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+
+  /* ─── Auto-resize textarea ────────────────────────── */
+  const input = document.getElementById('msg-input');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  /* ─── Render a single message ─────────────────────── */
+  function renderMessage(msg) {
+    const container = document.getElementById('messages-container');
+    const typing    = document.getElementById('typing');
+    const side      = msg.sender === 'me' ? 'me' : 'other';
+    const sev       = SEVERITY[msg.bucket] || SEVERITY.safe;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = `msg-wrapper ${side}`;
+    wrapper.id = `msg-${msg.id}`;
+
+    let html = `<div class="msg-username">${msg.username}</div>`;
+
+    /* Banned banner (extreme) */
+    if (sev.bannerShow) {
+      html += `<div class="banned-banner">🚫 Banned — Extreme Hate Speech Detected</div>`;
+    }
+
+    /* Bubble */
+    const revealedClass = msg.revealed ? 'revealed' : '';
+    html += `
+      <div class="msg-bubble ${msg.bucket !== 'safe' ? msg.bucket : ''} ${revealedClass}" id="bubble-${msg.id}">
+        <span class="msg-text">${escapeHtml(msg.text)}</span>
+        <span class="msg-time">${msg.timestamp}</span>
+      </div>`;
+
+    /* Warning overlay */
+    if (msg.bucket !== 'safe') {
+      const pct = (msg.offensive_score * 100).toFixed(1);
+      const reported = msg.reported;
+      html += `
+        <div class="warn-overlay ${msg.bucket}">
+          <span class="warn-icon">${sev.icon}</span>
+          <div class="warn-body">
+            <div class="warn-label">${msg.label_display} &nbsp;·&nbsp; ${pct}% offensive</div>
+            <div class="warn-score">Model confidence in offensiveness</div>
+            <div style="margin-top:6px;">
+              ${msg.bucket !== 'mild' ? `<button class="reveal-btn" onclick="toggleReveal('${msg.id}')" id="reveal-btn-${msg.id}">
+                ${msg.revealed ? '🙈 Hide' : '👁️ Reveal'}
+              </button>` : ''}
+              <button class="report-btn ${reported ? 'done' : ''}" id="report-btn-${msg.id}"
+                onclick="reportMessage('${msg.id}')" ${reported ? 'disabled' : ''}>
+                ${reported ? '✔ Reported' : '🚩 Report as Hate Speech'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    wrapper.innerHTML = html;
+    container.insertBefore(wrapper, typing);
+    container.scrollTop = container.scrollHeight;
+
+    /* Update sidebar last message */
+    document.getElementById('last-msg').textContent =
+      msg.is_offensive ? `⚠️ ${msg.text.slice(0, 28)}…` : msg.text.slice(0, 32);
+  }
+
+  /* ─── Toggle reveal ──────────────────────────────── */
+  async function toggleReveal(id) {
+    const r = await fetch(`${API}/api/reveal`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message_id: id })
+    });
+    const msg = await r.json();
+    const bubble = document.getElementById(`bubble-${id}`);
+    const btn    = document.getElementById(`reveal-btn-${id}`);
+    if (msg.revealed) {
+      bubble.classList.add('revealed');
+      if (btn) btn.textContent = '🙈 Hide';
+    } else {
+      bubble.classList.remove('revealed');
+      if (btn) btn.textContent = '👁️ Reveal';
+    }
+  }
+
+  /* ─── Report as hate speech ───────────────────────── */
+  async function reportMessage(id) {
+    const btn = document.getElementById(`report-btn-${id}`);
+    if (!btn || btn.disabled) return;
+
+    const r = await fetch(`${API}/api/feedback`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message_id: id, correct_label: 'Offensive_Untargetede' })
+    });
+    const res = await r.json();
+
+    btn.textContent = '✔ Reported';
+    btn.classList.add('done');
+    btn.disabled = true;
+
+    showToast('Added to training dataset ✓', 'success');
+    updateStats();
+    updateFeedbackLog(id);
+  }
+
+  /* ─── Update sidebar feedback log ────────────────── */
+  async function updateFeedbackLog(msgId) {
+    const r   = await fetch(`${API}/api/messages`);
+    const all = await r.json();
+    const msg = all.find(m => m.id === msgId);
+    if (!msg) return;
+
+    const list = document.getElementById('feedback-list');
+    if (list.querySelector('.no-feedback')) list.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'feedback-item';
+    el.innerHTML = `
+      <div class="fb-text">${escapeHtml(msg.text)}</div>
+      <div class="fb-meta">🚩 ${msg.label_display} · ${(msg.offensive_score*100).toFixed(0)}% · just now</div>`;
+    list.prepend(el);
+  }
+
+  /* ─── Send message ────────────────────────────────── */
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+
+    const sendBtn = document.getElementById('send-btn');
+    sendBtn.disabled = true;
+
+    /* Show typing indicator */
+    document.getElementById('typing').classList.add('active');
+    document.getElementById('messages-container').scrollTop = 99999;
+
+    try {
+      const r = await fetch(`${API}/api/send`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ text, sender: 'me', username: ME_USERNAME })
+      });
+
+      if (!r.ok) throw new Error('Server error');
+      const msg = await r.json();
+
+      document.getElementById('typing').classList.remove('active');
+      renderMessage(msg);
+      updateStats();
+
+      /* Toast for offensive messages */
+      if (msg.bucket === 'extreme') {
+        showToast(`Extreme hate speech blocked! (${(msg.offensive_score*100).toFixed(0)}%)`, 'danger');
+      } else if (msg.bucket === 'high') {
+        showToast(`Offensive content detected — blurred (${(msg.offensive_score*100).toFixed(0)}%)`, 'warn');
+      } else if (msg.bucket === 'mild') {
+        showToast(`Mild offensive language flagged`, 'warn');
+      }
+    } catch(e) {
+      document.getElementById('typing').classList.remove('active');
+      showToast('❌ Server offline. Start chat_server.py first!', 'danger');
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  /* ─── Update stats panel ──────────────────────────── */
+  async function updateStats() {
+    try {
+      const r = await fetch(`${API}/api/stats`);
+      const s = await r.json();
+      document.getElementById('stat-total').textContent     = s.total;
+      document.getElementById('stat-safe').textContent      = s.safe;
+      document.getElementById('stat-offensive').textContent = s.offensive;
+      document.getElementById('stat-reported').textContent  = s.reported;
+    } catch(_) {}
+  }
+
+  /* ─── Escape HTML ─────────────────────────────────── */
+  function escapeHtml(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ─── Init ────────────────────────────────────────── */
+  async function init() {
+    // Load existing messages if any
+    try {
+      const r = await fetch(`${API}/api/messages`);
+      const msgs = await r.json();
+      msgs.forEach(renderMessage);
+      updateStats();
+    } catch(_) {
+      showToast('Start chat_server.py to enable AI moderation', 'info');
+    }
+    input.focus();
+  }
+
+  init();
+</script>
+</body>
+</html>

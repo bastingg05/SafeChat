@@ -1,0 +1,19 @@
+# Model weights (too large for git — use Git LFS or share separately)
+finetuned_model/
+
+# Large dataset files
+mal_full_offensive_train.csv
+malayalam_train.csv
+malayalam_labeled_clean.csv
+benchmark_results.csv
+
+# Generated / runtime files
+feedback_log.csv
+test_results_comparison.csv
+__pycache__/
+*.pyc
+logs/
+
+# System
+.DS_Store
+Thumbs.db
