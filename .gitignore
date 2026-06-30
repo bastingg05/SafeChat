@@ -1,5 +1,6 @@
 # Model weights (too large for git — use Git LFS or share separately)
 finetuned_model/
+finetuned_model_backup/
 
 # Large dataset files
 mal_full_offensive_train.csv
@@ -9,10 +10,21 @@ benchmark_results.csv
 
 # Generated / runtime files
 feedback_log.csv
+user_chat_dataset.csv
 test_results_comparison.csv
 __pycache__/
 *.pyc
 logs/
+
+# Data exploration (extracted datasets, too large for git)
+data_exploration/
+
+# Large archives / downloads
+*.zip
+
+# Reference documents
+*.pdf
+*.xlsx
 
 # System
 .DS_Store

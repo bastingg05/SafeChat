@@ -1,0 +1,164 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+
+\geometry{a4paper, margin=1in}
+\onehalfspacing
+\setlength{\parindent}{0.5in}
+\setlength{\parskip}{0.25em}
+\setlength{\headheight}{15pt}
+\sloppy
+
+\newcommand{\projecttitle}{Safe Chat: Real-Time Manglish \& Malayalam Hate Speech Detection System}
+\newcommand{\authorname}{Bastin George}
+\newcommand{\organization}{ICFOSS (International Centre for Free and Open Source Software)}
+\newcommand{\reportmonth}{\today}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\projecttitle}
+\fancyhead[R]{\nouppercase{\leftmark}}
+\fancyfoot[L]{\organization}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\lstdefinestyle{codeStyle}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{teal},
+    showstringspaces=false,
+    tabsize=4
+}
+\lstset{style=codeStyle}
+
+\renewcommand{\contentsname}{CONTENTS}
+\renewcommand{\listfigurename}{LIST OF FIGURES}
+\renewcommand{\listtablename}{LIST OF TABLES}
+\renewcommand{\bibname}{REFERENCES}
+
+\begin{document}
+
+\pagenumbering{gobble}
+
+\begin{titlepage}
+\begin{center}
+\vspace*{1.5cm}
+{\Large \textbf{SAFE CHAT: REAL-TIME MANGLISH \& MALAYALAM HATE SPEECH DETECTION SYSTEM}}\\[1.5cm]
+{\large \textbf{TECHNICAL PROJECT REPORT}}\\[1.5cm]
+submitted by\\[0.8cm]
+{\large \textbf{\authorname{} }}\\[1.5cm]
+prepared for\\[0.8cm]
+{\Large \textbf{\organization{}}}\\[0.5cm]
+\vfill
+{\large \reportmonth{}}
+\end{center}
+\end{titlepage}
+
+\clearpage
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{ABSTRACT}
+\addcontentsline{toc}{chapter}{ABSTRACT}
+The rapid expansion of digital communication in Kerala has led to the dominance of Manglish (Malayalam written using the English alphabet) as the primary medium for informal text-based interaction. The Safe Chat System is an advanced, real-time messaging application designed to solve the critical issue of automated hate speech and profanity detection in code-mixed languages, a domain where standard Natural Language Processing (NLP) models inherently fail. 
+
+The system leverages a sophisticated Artificial Intelligence architecture centered around a fine-tuned Hugging Face MuRIL (Multilingual Representations for Indian Languages) model, backed by a colossal custom-built dataset of nearly 40,000 unique records. To combat dataset bias, aggressive trolling techniques, and character dragging, the system incorporates a strict mathematical pre-processing firewall. This firewall utilizes Regular Expressions (Regex) for surgical word disambiguation and a TF-IDF Cosine Similarity engine that operates on a 0.85 threshold to catch infinite spelling variations of slurs without generating false positives.
+
+Furthermore, the Safe Chat System features an innovative continuous active learning loop. User feedback via the frontend interface instantly bypasses the AI via an in-memory Whitelist Cache and dynamically updates the core dataset. A custom OS-level graceful shutdown intercept ensures that upon server termination, the AI automatically re-trains itself in the background, allowing the platform to actively learn and adapt to new linguistic trends in real-time.
+
+\clearpage
+\tableofcontents
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\chapter{INTRODUCTION}
+
+\section{Background of the Study}
+Digital communication has become a major part of academic, personal, and professional life. In regions like Kerala, users heavily rely on "Manglish"—a code-mixed language combining Malayalam vocabulary with English script. Because Manglish is entirely informal and has no standardized spelling rules, traditional AI and NLP filters are fundamentally incapable of monitoring it effectively. 
+
+Unsafe online communication, cyberbullying, and hate speech are rampant issues. The Safe Chat System was developed to provide a secure, self-learning chat environment capable of actively understanding, filtering, and adapting to the complexities of code-mixed profanity in real time.
+
+\section{Problem Statement}
+Standard messaging platforms either lack moderation entirely or use rudimentary keyword-blocking systems that are easily bypassed by trolls (e.g., spelling a slur as "myyyyyyrr" instead of its base form). Furthermore, AI models suffer from severe dataset bias, often misclassifying innocent words simply because they appear frequently in abusive contexts. There is a pressing need for a chat ecosystem that uses advanced mathematical pre-processing to normalize text, robust AI to understand context, and a live feedback loop to correct biases on the fly.
+
+\section{Objectives}
+The primary objective of the Safe Chat System is to design an intelligent, adaptive messaging platform. The specific objectives are:
+\begin{itemize}
+    \item To engineer a massive code-mixed dataset by merging, mapping, and deduplicating data from multiple open-source and synthetic sources.
+    \item To build a pre-processing firewall using Regex and TF-IDF Cosine Similarity to normalize exaggerated text and catch spelling variations.
+    \item To fine-tune the Hugging Face MuRIL architecture to classify Manglish text into five distinct safety buckets (e.g., Profanity, Off-Target, Safe).
+    \item To implement an Instant Whitelist Cache that allows administrative UI feedback to bypass AI biases instantly.
+    \item To establish a continuous active learning pipeline that automatically re-trains the model upon server shutdown.
+\end{itemize}
+
+\chapter{SYSTEM ANALYSIS AND DESIGN}
+
+\section{Data Engineering}
+The foundational dataset was constructed by parsing and merging eight separate massive datasets, including the \textit{DravidianCodeMix-2020} offensive and sentiment datasets. Because sentiment data (e.g., Negative, Positive) does not directly map to offensive categories, a custom mathematical label mapping function was built to translate non-abusive negative sentiment into safe buckets. Following a synthetic Cartesian expansion to counter class imbalance, the final master dataset was compressed to exactly 39,716 completely unique, highly optimized records.
+
+\section{The Preprocessing Firewall}
+Before user input reaches the AI model, it passes through a highly strict, two-tier firewall designed to catch trolls and spelling variations:
+\begin{enumerate}
+    \item \textbf{Regex Character Reduction \& Disambiguation:} 
+    A regular expression engine strips exaggerated typing (e.g., \textit{myyyyyre} $\rightarrow$ \textit{myyree}). Furthermore, it surgically separates identical-looking words with different contexts (e.g., translating the safe word `chettan` to `brother`, and the slur `chette` to a base profanity token).
+    \item \textbf{Cosine Similarity Engine (TF-IDF):}
+    Using \textit{scikit-learn}, character n-grams are extracted and mapped to mathematical vectors. The engine measures the angle between the user's word and known base slurs. Operating on a strict 0.85 threshold, it effectively catches infinite spelling variations without generating false positives on innocent short words.
+\end{enumerate}
+
+\section{AI Model and Continuous Learning}
+The core intelligence is powered by \textbf{MuRIL}, fine-tuned via the Hugging Face `transformers` library. The system features a custom OS-level graceful shutdown intercept. When the server administrator attempts to close the Flask server, the system prompts an export sequence. If approved, it launches an asynchronous \texttt{update\_brain.py} training sequence that instantly fine-tunes the MuRIL model on all new user feedback gathered during the session.
+
+\chapter{IMPLEMENTATION \& RESULTS}
+
+\section{Development Environment}
+\begin{table}[h]
+\centering
+\caption{Development Environment and Technology Stack}
+\begin{tabular}{|p{4cm}|p{5cm}|p{5cm}|}
+\hline
+\textbf{Component} & \textbf{Technology} & \textbf{Purpose} \\
+\hline
+Backend \& API & Python 3.x, Flask & Server-side application development \\
+\hline
+Machine Learning & Hugging Face, Transformers & Model orchestration and fine-tuning \\
+\hline
+Mathematical NLP & Scikit-Learn (TF-IDF), Numpy & Cosine Similarity and Vectorization \\
+\hline
+Data Engineering & Pandas, CSV & Deduplication and dataset management \\
+\hline
+Frontend & HTML5, CSS3, JavaScript & Browser-based user interface \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Observations and Results}
+The integration of the Instant Whitelist Cache successfully resolved the issue of Deep Learning Contextual Bias at the application layer. When users reported false positives (e.g., safe phrases like "da sugamano"), the manual feedback instantly bypassed the AI via RAM caching, proving that the system allows for absolute administrative control. The system demonstrates that mathematical pre-processing combined with Transformer-based AI can effectively moderate chaotic code-mixed languages in real-time.
+
+\chapter{CONCLUSION AND FUTURE SCOPE}
+
+\section{Conclusion}
+The Safe Chat System effectively addresses the complex challenges of moderating code-mixed Malayalam. By combining a mathematical Regex/Cosine-Similarity firewall with a fine-tuned MuRIL AI model and a live continuous-feedback loop, the platform successfully mitigates dataset bias, catches obfuscated profanity, and provides a scalable, self-learning ecosystem. 
+
+\section{Future Scope}
+Future enhancements may include deployment scaling via cloud infrastructure, integration of real-time multi-modal moderation (audio/video), and expanding the core dataset to support additional regional Indian languages under the MuRIL architecture framework.
+
+\end{document}

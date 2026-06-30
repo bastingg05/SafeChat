@@ -12,9 +12,16 @@ import csv
 import os
 import uuid
 from datetime import datetime
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_file
 from transformers import pipeline
 import re
+import signal
+import sys
+
+# Fix Windows console encoding — allows printing Malayalam/Unicode characters
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+import subprocess
 
 # ─────────────────────────────────────────────
 # App setup
@@ -53,6 +60,15 @@ if os.path.exists(USER_CHAT_DATASET):
             if row:
                 saved_chat_texts.add(row[0])
 
+# Load User Overrides (Whitelist) from the training dataset
+USER_OVERRIDES = {}
+if os.path.exists(DATASET_PATH):
+    with open(DATASET_PATH, "r", encoding="utf-8") as f:
+        reader = csv.reader(f, delimiter="\t")
+        for row in reader:
+            if len(row) >= 3 and row[2] in ("user_classify", "feedback"):
+                USER_OVERRIDES[row[0].strip().lower()] = row[1]
+
 # In-memory message store  {id: message_dict}
 messages: dict = {}
 message_order: list = []   # keeps insertion order
@@ -74,51 +90,120 @@ LABEL_META = {
     "Off_target_ind":          {"display": "Personal Attack",       "severity": "high"},
 }
 
-# ─────────────────────────────────────────────
-# Normalization & Transliteration Pipeline
-# ─────────────────────────────────────────────
-# Using Regex allows us to catch extended words (e.g. 'myreee', 'mandannna')
-REGEX_VARIANTS = [
-    (r'\bkashuvandi[a-z]*\b', 'cashew'), # PROTECT safe words from 'andi' subword tokenization
-    (r'\bmandan[a-z]*\b', 'mandan'), # mandanna, mandanaa
-    (r'\bpann[i]+[a-z]*\b', 'panni'),     # pannii, panniii
-    (r'\bm[ya]i?r[a-z]*\b', 'myr'),   # myre, myree, myran, myresh
-    (r'\bpo[o]+d[a-z]*\b', 'poda'),   # poda, pooda, podaa
-    (r'\b(?:kunj[u]?)?andi[a-z]*\b', 'myr'),    # FORCE ambiguous 'andi' to definitive 'myr'
-    (r'\bkunda[a-z]*\b', 'kundan'), # kundan, kundappy, kundaa
-    (r'\bpo[o]+ri[a-z]*\b', 'poori'), # poorimone, poorimakkal
-    (r'\bthayo[a-z]*\b', 'thayoli'), # thayoli, thayolikal
-    (r'\bkunn[a-z]*\b', 'kunna'),   # kunna, kunnayoli
-    (r'\bpa[a]+ri[a-z]*\b', 'pari'),   # paari, pariyol
-    (r'\bchettat[th]*aram[a-z]*\b', 'myr'), # Force block 'chettatharam', 'chettattharam'
-    (r'\bthanthayillath[a-z]*\b', 'myr'), # thanthayillathavane (fatherless)
-    (r'\bkundi[a-z]*\b', 'myr'), # kundi, kundimyre
-    (r'\bkindi[a-z]*\b', 'myr'), # kindi (slang for stupid/useless)
-    (r'\bpolayadi[a-z]*\b', 'myr'), # polayadi (casteist/prostitute slur)
-    (r'\bpunda[a-z]*\b', 'myr'), # pundachi
-]
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
-def remove_repeated_characters(text):
-    # Reduce 3 or more consecutive identical characters to 2
-    # So "myreeeeee" becomes "myree", which our Regex will easily catch
-    return re.sub(r'(.)\1{2,}', r'\1\1', text)
+# ─────────────────────────────────────────────
+# Dynamic Cosine Similarity Normalization
+# ─────────────────────────────────────────────
+# This replaces the hardcoded REGEX dictionary to mathematically catch endless spelling variations.
+BASE_SLURS = ["myr", "thendi", "poori", "thayoli", "panni", "punda", "kundan", "kunna", "kundi", 
+              "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി", "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി"]
 
-def custom_manglish_dictionary(text):
-    # Apply regex rules to catch extended slurs
-    for pattern, replacement in REGEX_VARIANTS:
-        text = re.sub(pattern, replacement, text)
-    return text
+# Map specific safe words to force low scores so they are ignored by the engine
+SAFE_EXCEPTIONS = {"kashuvandi", "cashew", "apple", "pooryum"}
+
+# Pre-train the TF-IDF Vectorizer on our base slurs using character n-grams (2-3 chars)
+_vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(2, 3))
+_vectorizer.fit(BASE_SLURS)
+_base_vectors = _vectorizer.transform(BASE_SLURS)
+
+def apply_cosine_similarity(text, threshold=0.85):
+    """
+    Tokenizes text, checks each word against BASE_SLURS using Cosine Similarity.
+    If a word scores >= threshold, it is automatically mapped to its closest base slur.
+    """
+    words = text.split()
+    processed_words = []
+    
+    for word in words:
+        clean_word = word.lower()
+        # Reduce repeated characters (e.g. myyyyreee -> myyree)
+        clean_word = re.sub(r'(.)\1{2,}', r'\1\1', clean_word)
+        
+        if clean_word in SAFE_EXCEPTIONS:
+            processed_words.append(word)
+            continue
+            
+        # Vectorize and calculate similarity
+        word_vector = _vectorizer.transform([clean_word])
+        similarities = cosine_similarity(word_vector, _base_vectors)[0]
+        
+        best_idx = np.argmax(similarities)
+        best_score = similarities[best_idx]
+        
+        if best_score >= threshold:
+            best_match = BASE_SLURS[best_idx]
+            processed_words.append(best_match)
+        else:
+            processed_words.append(word)
+            
+    return " ".join(processed_words)
+
+from indic_transliteration import sanscript
 
 def preprocess_text(text):
+    # Convert native Malayalam script to English letters (Manglish) using OPTITRANS
+    # This prevents the AI from being bypassed by native script.
+    text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
     text = text.lower()
-    text = remove_repeated_characters(text)
-    text = custom_manglish_dictionary(text)
+    
+    # ─────────────────────────────────────────────
+    # Explicit Disambiguation Rules
+    # ─────────────────────────────────────────────
+    # Classify strictly between 'brother' and 'scoundrel'
+    text = re.sub(r'\bchettan\b', 'brother', text)
+    text = re.sub(r'\bchettaa\b', 'brother', text)
+    text = re.sub(r'\bchetta\b', 'brother', text)
+    text = re.sub(r'\bchette\b', 'thendi', text)  # Map definitive slur to 'thendi'
+    text = re.sub(r'\bmaitanti\b', 'mythandi', text)  # Map transliterated malayalam slur to known dataset slur
+    text = re.sub(r'\beta\b', 'eda', text)        # Map transliterated malayalam 'eda' to known dataset 'eda'
+    
+    # Neutralize bias against casual dismissive slang
+    text = re.sub(r'\bpoda\b', 'friend', text)
+    text = re.sub(r'\bpodey\b', 'friend', text)
+    text = re.sub(r'\bpodi\b', 'friend', text)
+    
+    # Protect the word "poo" (flower) from Dataset Bias
+    text = re.sub(r'\bpoo+\b', 'flower', text)
+    
+    # Protect food mentions of poori
+    text = re.sub(r'\bpoor(?:i|yum)\s+(?:and\s+)?(?:curry|bhaji|masala)(?:um)?\b', 'food', text)
+
+    text = apply_cosine_similarity(text)
     return text
 
-def classify(text: str) -> dict:
+def classify(text: str, is_audio: bool = False) -> dict:
     """Run the model and return a structured result dict."""
-    processed_text = preprocess_text(text)
-    print(f"Normalized & Transliterated: '{text}' -> '{processed_text}'")
+    raw_text = text.strip().lower()
+    
+    # 1. Check User Override Cache (Instant Bypass)
+    if raw_text in USER_OVERRIDES:
+        forced_label = USER_OVERRIDES[raw_text]
+        print(f"Bypassing AI -> User Override Cache hit for '{raw_text}': {forced_label}")
+        is_offensive = forced_label != "Not_offensive"
+        meta = LABEL_META.get(forced_label, {"display": forced_label, "severity": "high" if is_offensive else "safe"})
+        return {
+            "label": forced_label,
+            "label_display": meta["display"],
+            "offensive_score": 1.0 if is_offensive else 0.0,
+            "safe_score": 0.0 if is_offensive else 1.0,
+            "is_offensive": is_offensive,
+            "bucket": meta["severity"],
+            "all_scores": {forced_label: 1.0}
+        }
+
+    # 2. Normal AI Pipeline
+    if is_audio:
+        # Voice input: already in Malayalam script, feed directly to model (no transliteration)
+        processed_text = text.strip()
+        print(f"Voice input (Malayalam script, no transliteration): '{processed_text}'")
+
+    else:
+        # Typed input: Manglish, apply full preprocessing with transliteration
+        processed_text = preprocess_text(text)
+        print(f"Normalized & Transliterated: '{text}' -> '{processed_text}'")
     raw = classifier(processed_text)
     results = raw[0] if (raw and isinstance(raw[0], list)) else raw
 
@@ -154,22 +239,28 @@ def classify(text: str) -> dict:
 # Routes
 # ─────────────────────────────────────────────
 
+@app.route("/")
+def index():
+    return send_file("chat.html")
+
+
 @app.route("/api/send", methods=["POST"])
 def send_message():
     """
     Body JSON:
-      { "text": "...", "sender": "me" | "other", "username": "Alice" }
+      { "text": "...", "sender": "me" | "other", "username": "Alice", "is_audio": boolean }
     Returns the full message object including classification.
     """
     data     = request.get_json(force=True)
     text     = data.get("text", "").strip()
     sender   = data.get("sender", "me")       # "me" = right side, "other" = left side
     username = data.get("username", "User")
+    is_audio = data.get("is_audio", False)
 
     if not text:
         return jsonify({"error": "empty text"}), 400
 
-    result = classify(text)
+    result = classify(text, is_audio=is_audio)
     
     # Save user chat without duplication
     if text not in saved_chat_texts:
@@ -188,6 +279,7 @@ def send_message():
         "date":       datetime.now().isoformat(),
         "revealed":   False,
         "reported":   False,
+        "is_audio":   is_audio,
         **result,
     }
 
@@ -227,6 +319,9 @@ def feedback():
     with open(DATASET_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow([text, user_label, "feedback"])
+        
+    # Instant Cache Update
+    USER_OVERRIDES[text.strip().lower()] = user_label
 
     # 2. Append to a separate feedback log for auditing
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
@@ -271,6 +366,9 @@ def classify_message():
     with open(DATASET_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t")
         writer.writerow([msg["text"], train_label, "user_classify"])
+        
+    # Instant Cache Update
+    USER_OVERRIDES[msg["text"].strip().lower()] = train_label
 
     # 2. Append to separate feedback log for auditing
     with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as f:
@@ -324,7 +422,25 @@ def stats():
 # ─────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────
+def graceful_shutdown(signum, frame):
+    print("\n\n[SafeChat Server] Received shutdown signal (Ctrl+C).")
+    print("[SafeChat Server] All datasets (Memory) are already safely flushed to disk.")
+    
+    try:
+        ans = input("\nDo you want to export/update the AI Brain with the latest memory before closing? (y/n): ")
+        if ans.lower().strip() == 'y':
+            print("[SafeChat Server] Starting Brain Export. DO NOT close this window!")
+            subprocess.run(["python", "update_brain.py"])
+            print("[SafeChat Server] Brain successfully exported! Previous memory removed, latest kept.")
+        else:
+            print("Skipping Brain Export. Exiting immediately.")
+    except Exception:
+        print("\nExiting.")
+    
+    sys.exit(0)
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, graceful_shutdown)
     print("\nChat server running at http://127.0.0.1:5000")
     print("Open chat.html in your browser to start chatting.\n")
     app.run(host="0.0.0.0", port=5000, debug=False)

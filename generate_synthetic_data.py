@@ -24,7 +24,13 @@ bad_words_map = {
     'chetta': 'ചെറ്റ',
     'kurish': 'കുരിശ്',
     'kurishe': 'കുരിശേ',
-    'pullu': 'പുല്ല്'
+    'pullu': 'പുല്ല്',
+    'kazhuveri': 'കഴുവേറി',
+    'themmadi': 'തെമ്മാടി',
+    'koothi': 'കൂതി',
+    'oomb': 'ഊമ്പ്',
+    'oomban': 'ഊമ്പൻ',
+    'thayir': 'തയിർ'
 }
 
 # Contextual templates for OFFENSIVE (Manglish)

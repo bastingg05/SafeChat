@@ -97,7 +97,7 @@ def load_classifier(model_source):
         )
     else:
         token = ""
-        model_name = "Hate-speech-CNERG/deoffxlmr-mono-malyalam"
+        model_name = "Hate-speech-CNERG/malayalam-codemixed-abusive-MuRIL"
         # Return Hugging Face pipeline
         return pipeline(
             "text-classification",
@@ -153,7 +153,7 @@ with st.sidebar:
         """)
     else:
         st.markdown("""
-        - **Model ID:** [Hate-speech-CNERG/deoffxlmr-mono-malyalam](https://huggingface.co/Hate-speech-CNERG/deoffxlmr-mono-malyalam)
+        - **Model ID:** [Hate-speech-CNERG/malayalam-codemixed-abusive-MuRIL](https://huggingface.co/Hate-speech-CNERG/malayalam-codemixed-abusive-MuRIL)
         - **Base Architecture:** XLM-RoBERTa-Base
         - **Languages:** Malayalam, Malayalam-English Code-Mixed
         - **Authors:** Complex Network Research Group (CNERG), IIT Kharagpur

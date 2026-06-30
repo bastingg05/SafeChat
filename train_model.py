@@ -6,15 +6,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trai
 print("Loading dataset...")
 df_raw = pd.read_csv('mal_full_offensive_train.csv', sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
 
-# The original dataset has 36011 lines. Let's split using the row index in raw DataFrame:
-df_original = df_raw.iloc[:36011].dropna(subset=['text', 'label'])
-df_synthetic = df_raw.iloc[36011:].dropna(subset=['text', 'label'])
-
-# Sample original data to reduce training time
-df_original_sampled = df_original.sample(n=min(len(df_original), 4000), random_state=42)
-
-# Concatenate original sampled with synthetic data
-df = pd.concat([df_original_sampled, df_synthetic]).reset_index(drop=True)
+# Use the entire dataset and drop exact duplicates, keeping the LAST instance (so user feedback overrides)
+df = df_raw.dropna(subset=['text', 'label']).drop_duplicates(subset=['text'], keep='last')
 
 # Map dataset string labels to model expected string labels
 label_mapping = {
@@ -22,7 +15,11 @@ label_mapping = {
     'not-malayalam': 'Not_in_intended_language',
     'Offensive_Targeted_Insult_Group': 'Off_target_group',
     'Offensive_Untargetede': 'Profanity',
-    'Offensive_Targeted_Insult_Individual': 'Off_target_ind'
+    'Offensive_Targeted_Insult_Individual': 'Off_target_ind',
+    'Profanity': 'Profanity',
+    'Off_target_group': 'Off_target_group',
+    'Off_target_ind': 'Off_target_ind',
+    'Not_in_intended_language': 'Not_in_intended_language'
 }
 
 df['mapped_label'] = df['label'].map(label_mapping)
@@ -34,7 +31,6 @@ label2id = {v: k for k, v in id2label.items()}
 
 df['label_id'] = df['mapped_label'].map(label2id)
 
-print(f"Sampled original examples: {len(df_original_sampled)}, synthetic examples: {len(df_synthetic)}")
 print(f"Total valid training examples: {len(df)}")
 
 dataset = Dataset.from_pandas(df[['text', 'label_id']].rename(columns={'label_id': 'label'}))
@@ -42,7 +38,9 @@ dataset = Dataset.from_pandas(df[['text', 'label_id']].rename(columns={'label_id
 # Split into train and eval (90/10)
 dataset = dataset.train_test_split(test_size=0.1, seed=42)
 
-model_id = "Hate-speech-CNERG/deoffxlmr-mono-malyalam"
+import os
+model_id = "./finetuned_model" if os.path.exists("./finetuned_model") else "Hate-speech-CNERG/malayalam-codemixed-abusive-MuRIL"
+print(f"Loading tokenizer and model from: {model_id}")
 
 print("Loading tokenizer and model...")
 tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -53,7 +51,7 @@ def tokenize_function(examples):
 print("Tokenizing dataset...")
 tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
-model = AutoModelForSequenceClassification.from_pretrained(model_id, num_labels=5, id2label=id2label, label2id=label2id)
+model = AutoModelForSequenceClassification.from_pretrained(model_id, num_labels=5, id2label=id2label, label2id=label2id, ignore_mismatched_sizes=True)
 
 training_args = TrainingArguments(
     output_dir="./finetuned_model",
