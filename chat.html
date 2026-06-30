@@ -306,6 +306,49 @@
     .report-btn:hover { background: rgba(239,68,68,0.35); }
     .report-btn.done  { background: rgba(239,68,68,0.08); color: #6b7280; cursor: default; border-color: transparent; }
 
+    /* ── Classify Bar (under every message) ────── */
+    .classify-bar {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 5px;
+      padding: 5px 0;
+    }
+    .classify-label {
+      font-size: 0.70rem; color: var(--text-muted);
+      margin-right: 4px;
+    }
+    .classify-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.70rem; font-weight: 600;
+      cursor: pointer; border: none; outline: none;
+      transition: all 0.2s;
+    }
+    .classify-btn.safe {
+      background: rgba(0,168,132,0.15); color: #34d399;
+      border: 1px solid rgba(0,168,132,0.3);
+    }
+    .classify-btn.safe:hover { background: rgba(0,168,132,0.3); }
+    .classify-btn.hate {
+      background: rgba(239,68,68,0.15); color: #fca5a5;
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+    .classify-btn.hate:hover { background: rgba(239,68,68,0.3); }
+    .classify-btn.done {
+      opacity: 0.5; cursor: default;
+      pointer-events: none;
+    }
+    .classify-btn.selected {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.2);
+      opacity: 1;
+    }
+    .classify-btn.selected.safe {
+      background: rgba(0,168,132,0.4); color: #6ee7b7;
+    }
+    .classify-btn.selected.hate {
+      background: rgba(239,68,68,0.4); color: #fca5a5;
+    }
+
     /* Banned banner */
     .banned-banner {
       display: flex; align-items: center; gap: 8px;
@@ -440,6 +483,16 @@
       <div class="stat-card orange">
         <div class="stat-val" id="stat-reported">0</div>
         <div class="stat-lbl">Reported</div>
+      </div>
+    </div>
+    <div class="stats-panel">
+      <div class="stat-card red">
+        <div class="stat-val" id="stat-classify-hate">0</div>
+        <div class="stat-lbl">Labeled Hate</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-val" id="stat-classify-safe">0</div>
+        <div class="stat-lbl">Labeled Safe</div>
       </div>
     </div>
 
@@ -584,6 +637,23 @@
         </div>`;
     }
 
+    /* Classify bar — always shown on every message */
+    const userClassification = msg.user_classification || '';
+    const hateDone  = userClassification === 'hate_speech'    ? 'done selected' : (userClassification ? 'done' : '');
+    const safeDone  = userClassification === 'not_hate_speech' ? 'done selected' : (userClassification ? 'done' : '');
+    html += `
+      <div class="classify-bar" id="classify-bar-${msg.id}">
+        <span class="classify-label">Classify:</span>
+        <button class="classify-btn hate ${hateDone}" id="classify-hate-${msg.id}"
+          onclick="classifyMessage('${msg.id}', 'hate_speech')" ${userClassification ? 'disabled' : ''}>
+          👎 Hate Speech
+        </button>
+        <button class="classify-btn safe ${safeDone}" id="classify-safe-${msg.id}"
+          onclick="classifyMessage('${msg.id}', 'not_hate_speech')" ${userClassification ? 'disabled' : ''}>
+          👍 Not Hate Speech
+        </button>
+      </div>`;
+
     wrapper.innerHTML = html;
     container.insertBefore(wrapper, typing);
     container.scrollTop = container.scrollHeight;
@@ -631,6 +701,67 @@
     showToast('Added to training dataset ✓', 'success');
     updateStats();
     updateFeedbackLog(id);
+  }
+
+  /* ─── Classify message (hate_speech / not_hate_speech) ─ */
+  async function classifyMessage(id, classification) {
+    const hateBtn = document.getElementById(`classify-hate-${id}`);
+    const safeBtn = document.getElementById(`classify-safe-${id}`);
+    if (!hateBtn || !safeBtn) return;
+    if (hateBtn.disabled && safeBtn.disabled) return;
+
+    try {
+      const r = await fetch(`${API}/api/classify`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ message_id: id, classification })
+      });
+      const res = await r.json();
+      if (!r.ok) { showToast(res.error || 'Error', 'danger'); return; }
+
+      // Disable both buttons, highlight the selected one
+      hateBtn.disabled = true;
+      safeBtn.disabled = true;
+      hateBtn.classList.add('done');
+      safeBtn.classList.add('done');
+
+      if (classification === 'hate_speech') {
+        hateBtn.classList.add('selected');
+        hateBtn.textContent = '👎 Hate Speech ✔';
+        showToast('Labeled as Hate Speech — saved to dataset', 'danger');
+      } else {
+        safeBtn.classList.add('selected');
+        safeBtn.textContent = '👍 Not Hate Speech ✔';
+        showToast('Labeled as Not Hate Speech — saved to dataset', 'success');
+      }
+
+      updateStats();
+      updateClassifyLog(id, classification);
+    } catch(e) {
+      showToast('❌ Failed to classify message', 'danger');
+    }
+  }
+
+  /* ─── Update sidebar for classify events ─────────── */
+  function updateClassifyLog(msgId, classification) {
+    // We need the message text — grab it from the DOM
+    const wrapper = document.getElementById(`msg-${msgId}`);
+    if (!wrapper) return;
+    const textEl = wrapper.querySelector('.msg-text');
+    const text = textEl ? textEl.textContent : '...';
+
+    const list = document.getElementById('feedback-list');
+    if (list.querySelector('.no-feedback')) list.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'feedback-item';
+    const icon  = classification === 'hate_speech' ? '👎' : '👍';
+    const label = classification === 'hate_speech' ? 'Hate Speech' : 'Not Hate Speech';
+    el.style.borderLeftColor = classification === 'hate_speech' ? 'var(--red)' : 'var(--green)';
+    el.innerHTML = `
+      <div class="fb-text">${escapeHtml(text)}</div>
+      <div class="fb-meta">${icon} ${label} · just now</div>`;
+    list.prepend(el);
   }
 
   /* ─── Update sidebar feedback log ────────────────── */
@@ -705,6 +836,8 @@
       document.getElementById('stat-safe').textContent      = s.safe;
       document.getElementById('stat-offensive').textContent = s.offensive;
       document.getElementById('stat-reported').textContent  = s.reported;
+      document.getElementById('stat-classify-hate').textContent = s.classified_hate || 0;
+      document.getElementById('stat-classify-safe').textContent = s.classified_not_hate || 0;
     } catch(_) {}
   }
 
