@@ -599,6 +599,10 @@
     const side      = msg.sender === 'me' ? 'me' : 'other';
     const sev       = SEVERITY[msg.bucket] || SEVERITY.safe;
 
+    if (document.getElementById(`msg-${msg.id}`)) {
+      return; // Prevent duplicate rendering
+    }
+
     const wrapper = document.createElement('div');
     wrapper.className = `msg-wrapper ${side}`;
     wrapper.id = `msg-${msg.id}`;
@@ -941,7 +945,16 @@
     }
   }
 
-  /* ─── Init ────────────────────────────────────────── */
+  /* ─── Init & Polling ────────────────────────────── */
+  async function pollMessages() {
+    try {
+      const r = await fetch(`${API}/api/messages`);
+      if (!r.ok) return;
+      const msgs = await r.json();
+      msgs.forEach(renderMessage);
+    } catch(e) {}
+  }
+
   async function init() {
     // Load existing messages if any
     try {
@@ -952,6 +965,10 @@
     } catch(_) {
       showToast('Start chat_server.py to enable AI moderation', 'info');
     }
+    
+    // Start live polling every 2.5 seconds
+    setInterval(pollMessages, 2500);
+    
     input.focus();
   }
 
