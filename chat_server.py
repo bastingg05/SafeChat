@@ -22,6 +22,13 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 import subprocess
+import json
+import tempfile
+
+# Ensure winget's actual ffmpeg binary folder is in PATH
+ffmpeg_bin = r"C:\Users\basti\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin"
+if ffmpeg_bin not in os.environ.get("PATH", ""):
+    os.environ["PATH"] += os.pathsep + ffmpeg_bin
 
 # ─────────────────────────────────────────────
 # App setup
@@ -73,12 +80,40 @@ if os.path.exists(DATASET_PATH):
 messages: dict = {}
 message_order: list = []   # keeps insertion order
 
+CHAT_HISTORY_FILE = os.path.join(os.path.dirname(__file__), "chat_history.json")
+
+def load_chat_history():
+    if os.path.exists(CHAT_HISTORY_FILE):
+        try:
+            with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+                for msg in history:
+                    messages[msg["id"]] = msg
+                    message_order.append(msg["id"])
+        except Exception as e:
+            print(f"Error loading chat history: {e}")
+
+def save_chat_history():
+    history = [messages[mid] for mid in message_order]
+    with open(CHAT_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+
+load_chat_history()
+
 # ─────────────────────────────────────────────
 # Load model once at startup
 # ─────────────────────────────────────────────
 print("Loading fine-tuned model...")
 classifier = pipeline("text-classification", model=MODEL_DIR, top_k=None)
 print("Model loaded successfully!")
+
+print("Loading Whisper STT model...")
+try:
+    whisper_stt = pipeline("automatic-speech-recognition", model="sajilck/whisper-small-malayalam")
+    print("Whisper model loaded successfully!")
+except Exception as e:
+    print(f"Error loading Whisper model: {e}")
+    whisper_stt = None
 
 SAFE_LABELS = {"Not_offensive", "Not_in_intended_language"}
 
@@ -286,6 +321,8 @@ def send_message():
     messages[msg["id"]] = msg
     message_order.append(msg["id"])
 
+    save_chat_history()
+
     return jsonify(msg), 200
 
 
@@ -335,6 +372,8 @@ def feedback():
             msg.get("label", ""),
         ])
 
+    save_chat_history()
+
     return jsonify({"status": "ok", "message": "Feedback saved to dataset"}), 200
 
 
@@ -383,6 +422,8 @@ def classify_message():
             f"user_classify:{classification}",
         ])
 
+    save_chat_history()
+
     return jsonify({
         "status": "ok",
         "classification": classification,
@@ -398,7 +439,8 @@ def reveal():
     if mid not in messages:
         return jsonify({"error": "not found"}), 404
     messages[mid]["revealed"] = not messages[mid]["revealed"]
-    return jsonify(messages[mid]), 200
+    save_chat_history()
+    return jsonify({"status": "ok", "revealed": messages[mid]["revealed"]}), 200
 
 
 @app.route("/api/stats", methods=["GET"])
@@ -418,6 +460,37 @@ def stats():
         "classified_not_hate": classified_not_hate,
     }), 200
 
+
+@app.route("/api/transcribe", methods=["POST"])
+def transcribe_audio():
+    """Transcribes an uploaded audio blob using Whisper."""
+    if whisper_stt is None:
+        return jsonify({"error": "Whisper model not loaded on server."}), 500
+
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files["audio"]
+    if audio_file.filename == "":
+        return jsonify({"error": "Empty audio file"}), 400
+
+    # Save to a temporary file for Whisper to read
+    fd, tmp_path = tempfile.mkstemp(suffix=".webm")
+    os.close(fd)
+    
+    try:
+        audio_file.save(tmp_path)
+        # Run Whisper inference
+        result = whisper_stt(tmp_path)
+        transcribed_text = result.get("text", "").strip()
+        
+        return jsonify({"status": "ok", "text": transcribed_text}), 200
+    except Exception as e:
+        print(f"Whisper transcription error: {e}")
+        return jsonify({"error": "Failed to transcribe audio"}), 500
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 # ─────────────────────────────────────────────
 # Entry point

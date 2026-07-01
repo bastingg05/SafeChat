@@ -448,6 +448,59 @@
     /* ── Scrollbar ───────────────────────────────── */
     .feedback-section::-webkit-scrollbar { width: 3px; }
     .feedback-section::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    /* ── Mobile Responsiveness ───────────────────── */
+    @media (max-width: 768px) {
+      .app-shell {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 35vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .feedback-section {
+        display: none; /* Hide feedback log to prioritize chat area on mobile */
+      }
+      .contact-item {
+        display: none; /* Hide static contact item */
+      }
+      .stats-panel {
+        padding: 8px;
+        gap: 4px;
+      }
+      .stat-card {
+        padding: 8px;
+      }
+      .stat-val {
+        font-size: 1.1rem;
+      }
+      .chat-area {
+        flex: 1;
+        min-height: 0;
+      }
+      .msg-bubble {
+        max-width: 95%;
+      }
+      .msg-input {
+        font-size: 16px; /* Prevents iOS auto-zoom */
+      }
+      .input-bar {
+        padding: 10px;
+        gap: 8px;
+      }
+      .send-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+      .toast {
+        max-width: 90vw;
+        right: 5vw;
+      }
+    }
   </style>
 </head>
 <body>
@@ -856,92 +909,78 @@
     return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  /* ─── Speech-to-Text Recording Logic ──────────────── */
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
+  /* ─── Speech-to-Text Recording Logic (Whisper Backend) ──────────────── */
+  let mediaRecorder = null;
+  let audioChunks = [];
   let isRecording = false;
 
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ml-IN'; // Malayalam — outputs Malayalam script, server transliterates to Manglish
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+  async function toggleRecording() {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      isRecording = false;
+      document.getElementById('mic-btn').style.background = 'var(--green)';
+      showToast('⏳ Processing audio with Whisper...', 'info');
+      return;
+    }
 
-    recognition.onstart = function() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+
+        try {
+          document.getElementById('typing').classList.add('active');
+          const r = await fetch(`${API}/api/transcribe`, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (!r.ok) throw new Error('Transcription failed');
+          const data = await r.json();
+
+          if (data.error) throw new Error(data.error);
+
+          const inputEl = document.getElementById('msg-input');
+          if (inputEl.value.trim() === '') {
+            inputEl.value = data.text;
+          } else {
+            inputEl.value = inputEl.value + ' ' + data.text;
+          }
+          
+          inputEl.dispatchEvent(new Event('input'));
+          inputEl.focus();
+          lastInputWasVoice = true;
+          showToast(`✅ Whisper Dictation successful!`, 'success');
+        } catch (e) {
+          console.error(e);
+          showToast('❌ Failed to transcribe audio', 'danger');
+        } finally {
+          document.getElementById('typing').classList.remove('active');
+          // Stop all tracks to release mic
+          stream.getTracks().forEach(track => track.stop());
+        }
+      };
+
+      mediaRecorder.start();
       isRecording = true;
       document.getElementById('mic-btn').style.background = 'var(--red)';
       showToast('🎤 Listening... Speak in Malayalam. Tap mic to stop.', 'info');
-    };
-
-    recognition.onresult = function(event) {
-      const transcript = event.results[0][0].transcript;
-      const confidence = (event.results[0][0].confidence * 100).toFixed(0);
-      document.getElementById('mic-btn').style.background = 'var(--green)';
-      isRecording = false;
-      
-      // Dump the transcribed text into the typing box for review
-      const inputEl = document.getElementById('msg-input');
-      if (inputEl.value.trim() === '') {
-        inputEl.value = transcript;
-      } else {
-        inputEl.value = inputEl.value + ' ' + transcript;
-      }
-      
-      // Trigger the resize event so the textarea expands if needed
-      inputEl.dispatchEvent(new Event('input'));
-      inputEl.focus();
-      lastInputWasVoice = true;
-      
-      showToast(`✅ Dictation captured (${confidence}% confidence). Edit before sending.`, 'success');
-    };
-
-    recognition.onerror = function(event) {
-      console.error('Speech recognition error:', event.error);
-      isRecording = false;
-      document.getElementById('mic-btn').style.background = 'var(--green)';
-      
-      const errorMessages = {
-        'not-allowed':    '🚫 Microphone access denied. Allow microphone in browser settings.',
-        'no-speech':      '🔇 No speech detected. Try speaking louder or closer to the mic.',
-        'audio-capture':  '🎤 No microphone found. Please connect a microphone.',
-        'network':        '🌐 Network error — speech service unreachable. Check your internet.',
-        'aborted':        '⏹️ Speech recognition was aborted.',
-        'service-not-allowed': '🚫 Speech service not allowed. Make sure you are accessing via http://127.0.0.1:5000 (not file://).',
-        'language-not-supported': '🌐 Language not supported. Falling back to default.',
-      };
-      
-      const friendlyMsg = errorMessages[event.error] || `❌ Speech error: ${event.error}`;
-      showToast(friendlyMsg, 'danger');
-    };
-
-    recognition.onend = function() {
-      isRecording = false;
-      document.getElementById('mic-btn').style.background = 'var(--green)';
-    };
-  }
-
-  function toggleRecording() {
-    if (!SpeechRecognition) {
-      showToast('❌ Your browser does not support Web Speech API. Use Chrome or Edge.', 'danger');
-      return;
-    }
-
-    // Must be accessed via http:// not file:// for mic permissions
-    if (window.location.protocol === 'file:') {
-      showToast('⚠️ Open via http://127.0.0.1:5000 for mic access (not file://)', 'warn');
-      return;
-    }
-    
-    if (isRecording) {
-      recognition.stop();
-    } else {
-      try {
-        recognition.start();
-      } catch(e) {
-        showToast('❌ Could not start mic. Try again in a moment.', 'danger');
-        console.error('Recognition start error:', e);
-      }
+    } catch (e) {
+      console.error(e);
+      showToast('❌ Could not access microphone. Please allow permissions.', 'danger');
     }
   }
 
