@@ -11,6 +11,7 @@ benchmark_results.csv
 
 # Generated / runtime files
 .env
+chat_history.json
 feedback_log.csv
 user_chat_dataset.csv
 test_results_comparison.csv
