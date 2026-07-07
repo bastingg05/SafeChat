@@ -10838,5 +10838,86 @@
       "Not_in_intended_language": 0.0,
       "Off_target_ind": 0.0
     }
+  },
+  {
+    "id": "37a6826b-e400-4dc1-9d02-0ae4d6dc64bb",
+    "text": "Da pundachimwone",
+    "sender": "other",
+    "username": "[Telegram] Bastin",
+    "timestamp": "11:36",
+    "date": "2026-07-07T11:36:00.277426",
+    "revealed": false,
+    "reported": false,
+    "is_audio": false,
+    "label": "Profanity",
+    "label_display": "Profanity / Vulgarity",
+    "offensive_score": 0.99,
+    "safe_score": 0.01,
+    "is_offensive": true,
+    "bucket": "extreme",
+    "all_scores": {
+      "Profanity": 0.99,
+      "Not_offensive": 0.01
+    }
+  },
+  {
+    "id": "a6a6818e-4946-4296-8dbb-072fa334fe83",
+    "text": "Jacob",
+    "sender": "other",
+    "username": "[Telegram] Bastin",
+    "timestamp": "11:36",
+    "date": "2026-07-07T11:36:39.636981",
+    "revealed": false,
+    "reported": false,
+    "is_audio": false,
+    "label": "Not_offensive",
+    "label_display": "Safe",
+    "offensive_score": 0.0,
+    "safe_score": 1.0,
+    "is_offensive": false,
+    "bucket": "safe",
+    "all_scores": {
+      "Not_offensive": 1.0
+    }
+  },
+  {
+    "id": "936e4546-cada-40d4-91dc-a379e1c5e84f",
+    "text": "Messi",
+    "sender": "other",
+    "username": "[Telegram] Bastin",
+    "timestamp": "11:36",
+    "date": "2026-07-07T11:36:44.278776",
+    "revealed": false,
+    "reported": false,
+    "is_audio": false,
+    "label": "Not_offensive",
+    "label_display": "Safe",
+    "offensive_score": 0.0,
+    "safe_score": 1.0,
+    "is_offensive": false,
+    "bucket": "safe",
+    "all_scores": {
+      "Not_offensive": 1.0
+    }
+  },
+  {
+    "id": "b109474a-b40d-42fa-9c3e-a8f5fdc54a8e",
+    "text": "Ronaldo",
+    "sender": "other",
+    "username": "[Telegram] Bastin",
+    "timestamp": "11:36",
+    "date": "2026-07-07T11:36:48.064560",
+    "revealed": false,
+    "reported": false,
+    "is_audio": false,
+    "label": "Not_offensive",
+    "label_display": "Safe",
+    "offensive_score": 0.0,
+    "safe_score": 1.0,
+    "is_offensive": false,
+    "bucket": "safe",
+    "all_scores": {
+      "Not_offensive": 1.0
+    }
   }
 ]

@@ -52,14 +52,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Try to delete the original message (Bot must have delete permissions in the group)
                 try:
                     await update.message.delete()
-                    
-                    # Repost as a spoiler using HTML formatting
                     safe_username = html.escape(username)
-                    safe_text = html.escape(text)
+                    # Create a permanent censor bar covering the entire length of the sentence
+                    censored_text = "█" * len(text)
                     
                     spoiler_message = (
                         f"⚠️ <b>{safe_username}</b> sent an offensive message:\n"
-                        f"<span class=\"tg-spoiler\">{safe_text}</span>"
+                        f"{censored_text}"
                     )
                     
                     await context.bot.send_message(
@@ -122,11 +121,12 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.delete()
                         
                         safe_username = html.escape(username)
-                        safe_text = html.escape(transcribed_text)
+                        # Create a permanent censor bar covering the entire length of the voice transcript
+                        censored_text = "█" * len(transcribed_text)
                         
                         spoiler_message = (
                             f"⚠️ <b>{safe_username}</b> sent an offensive voice note:\n"
-                            f"<span class=\"tg-spoiler\">{safe_text}</span>"
+                            f"{censored_text}"
                         )
                         
                         await context.bot.send_message(
