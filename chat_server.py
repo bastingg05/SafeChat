@@ -107,9 +107,10 @@ print("Loading fine-tuned model...")
 classifier = pipeline("text-classification", model=MODEL_DIR, top_k=None)
 print("Model loaded successfully!")
 
-print("Loading Whisper STT model...")
+print("Loading Whisper STT model (faster-whisper)...")
 try:
-    whisper_stt = pipeline("automatic-speech-recognition", model="sajilck/whisper-small-malayalam")
+    from faster_whisper import WhisperModel
+    whisper_stt = WhisperModel("./vegam-model", device="auto", compute_type="int8")
     print("Whisper model loaded successfully!")
 except Exception as e:
     print(f"Error loading Whisper model: {e}")
@@ -126,88 +127,7 @@ LABEL_META = {
 }
 
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-
-# ─────────────────────────────────────────────
-# Dynamic Cosine Similarity Normalization
-# ─────────────────────────────────────────────
-# This replaces the hardcoded REGEX dictionary to mathematically catch endless spelling variations.
-BASE_SLURS = ["myr", "thendi", "poori", "thayoli", "panni", "punda", "kundan", "kunna", "kundi", 
-              "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി", "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി"]
-
-# Map specific safe words to force low scores so they are ignored by the engine
-SAFE_EXCEPTIONS = {"kashuvandi", "cashew", "apple", "pooryum"}
-
-# Pre-train the TF-IDF Vectorizer on our base slurs using character n-grams (2-3 chars)
-_vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(2, 3))
-_vectorizer.fit(BASE_SLURS)
-_base_vectors = _vectorizer.transform(BASE_SLURS)
-
-def apply_cosine_similarity(text, threshold=0.85):
-    """
-    Tokenizes text, checks each word against BASE_SLURS using Cosine Similarity.
-    If a word scores >= threshold, it is automatically mapped to its closest base slur.
-    """
-    words = text.split()
-    processed_words = []
-    
-    for word in words:
-        clean_word = word.lower()
-        # Reduce repeated characters (e.g. myyyyreee -> myyree)
-        clean_word = re.sub(r'(.)\1{2,}', r'\1\1', clean_word)
-        
-        if clean_word in SAFE_EXCEPTIONS:
-            processed_words.append(word)
-            continue
-            
-        # Vectorize and calculate similarity
-        word_vector = _vectorizer.transform([clean_word])
-        similarities = cosine_similarity(word_vector, _base_vectors)[0]
-        
-        best_idx = np.argmax(similarities)
-        best_score = similarities[best_idx]
-        
-        if best_score >= threshold:
-            best_match = BASE_SLURS[best_idx]
-            processed_words.append(best_match)
-        else:
-            processed_words.append(word)
-            
-    return " ".join(processed_words)
-
-from indic_transliteration import sanscript
-
-def preprocess_text(text):
-    # Convert native Malayalam script to English letters (Manglish) using OPTITRANS
-    # This prevents the AI from being bypassed by native script.
-    text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
-    text = text.lower()
-    
-    # ─────────────────────────────────────────────
-    # Explicit Disambiguation Rules
-    # ─────────────────────────────────────────────
-    # Classify strictly between 'brother' and 'scoundrel'
-    text = re.sub(r'\bchettan\b', 'brother', text)
-    text = re.sub(r'\bchettaa\b', 'brother', text)
-    text = re.sub(r'\bchetta\b', 'brother', text)
-    text = re.sub(r'\bchette\b', 'thendi', text)  # Map definitive slur to 'thendi'
-    text = re.sub(r'\bmaitanti\b', 'mythandi', text)  # Map transliterated malayalam slur to known dataset slur
-    text = re.sub(r'\beta\b', 'eda', text)        # Map transliterated malayalam 'eda' to known dataset 'eda'
-    
-    # Neutralize bias against casual dismissive slang
-    text = re.sub(r'\bpoda\b', 'friend', text)
-    text = re.sub(r'\bpodey\b', 'friend', text)
-    text = re.sub(r'\bpodi\b', 'friend', text)
-    
-    # Protect the word "poo" (flower) from Dataset Bias
-    text = re.sub(r'\bpoo+\b', 'flower', text)
-    
-    # Protect food mentions of poori
-    text = re.sub(r'\bpoor(?:i|yum)\s+(?:and\s+)?(?:curry|bhaji|masala)(?:um)?\b', 'food', text)
-
-    text = apply_cosine_similarity(text)
-    return text
+from preprocessing import preprocess_text, BASE_SLURS
 
 def classify(text: str, is_audio: bool = False) -> dict:
     """Run the model and return a structured result dict."""
@@ -239,14 +159,46 @@ def classify(text: str, is_audio: bool = False) -> dict:
         # Typed input: Manglish, apply full preprocessing with transliteration
         processed_text = preprocess_text(text)
         print(f"Normalized & Transliterated: '{text}' -> '{processed_text}'")
+
+    # Intercept single safe words
+    if processed_text.strip() == "friend":
+        return {
+            "label": "Not_offensive", 
+            "label_display": "Safe",
+            "offensive_score": 0.0,
+            "safe_score": 1.0,
+            "is_offensive": False,
+            "bucket": "safe",
+            "all_scores": {"Not_offensive": 1.0}
+        }
+
     raw = classifier(processed_text)
     results = raw[0] if (raw and isinstance(raw[0], list)) else raw
 
     safe_score      = sum(r["score"] for r in results if r["label"] in SAFE_LABELS)
     offensive_score = 1.0 - safe_score
-    is_offensive    = offensive_score > 0.5
+    
+    # ── Keyword Gating (Slur Catch-all) ──
+    # If a known slur survives preprocessing but the AI misses it due to bias,
+    # force the offensive score high.
+    if not is_audio:
+        words = processed_text.split()
+        # Check if any BASE_SLUR is a substring of any word in the text
+        if any(slur in word for word in words for slur in BASE_SLURS):
+            if offensive_score < 0.8:
+                print(f"Keyword Gating triggered! Forced Profanity for text containing slur: {processed_text}")
+                offensive_score = 0.99
+                safe_score = 0.01
+                results = [{"label": "Profanity", "score": 0.99}, {"label": "Not_offensive", "score": 0.01}]
 
-    top = max(results, key=lambda r: r["score"])
+    is_offensive = offensive_score > 0.8  # Increased threshold to 80% to maximize precision and reduce false positives
+
+    # If keyword gating fired, force the top label to Profanity
+    if offensive_score == 0.99:
+        top = {"label": "Profanity", "score": 0.99}
+    else:
+        top = max(results, key=lambda r: r["score"])
+        
     meta = LABEL_META.get(top["label"], {"display": top["label"], "severity": "unknown"})
 
     # Determine UI severity bucket
@@ -301,7 +253,6 @@ def send_message():
     if text not in saved_chat_texts:
         with open(USER_CHAT_DATASET, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f, delimiter="\t")
-            # We save the raw text, the AI's predicted label, and the source
             writer.writerow([text, result["label"], "user_chat"])
         saved_chat_texts.add(text)
 
@@ -481,9 +432,18 @@ def transcribe_audio():
     try:
         audio_file.save(tmp_path)
         # Run Whisper inference
-        result = whisper_stt(tmp_path)
-        transcribed_text = result.get("text", "").strip()
+        segments, info = whisper_stt.transcribe(tmp_path, beam_size=5)
+        transcribed_text = "".join([segment.text for segment in segments]).strip()
         
+        # ─────────────────────────────────────────────
+        # Whisper Hallucination Filter
+        # ─────────────────────────────────────────────
+        # Whisper often hallucinates looping text (e.g., "കോട്ട്ട്ട്ട്ട്ട്...") during pure silence or static.
+        # If the text is abnormally long but contains very few unique characters, squash it.
+        if len(transcribed_text) > 15 and len(set(transcribed_text)) < 8:
+            print(f"[Whisper] Suppressed silence hallucination: {transcribed_text}")
+            transcribed_text = ""
+            
         return jsonify({"status": "ok", "text": transcribed_text}), 200
     except Exception as e:
         print(f"Whisper transcription error: {e}")
@@ -504,12 +464,11 @@ def graceful_shutdown(signum, frame):
         if ans.lower().strip() == 'y':
             print("[SafeChat Server] Starting Brain Export. DO NOT close this window!")
             subprocess.run(["python", "update_brain.py"])
-            print("[SafeChat Server] Brain successfully exported! Previous memory removed, latest kept.")
         else:
             print("Skipping Brain Export. Exiting immediately.")
     except Exception:
         print("\nExiting.")
-    
+        
     sys.exit(0)
 
 if __name__ == "__main__":

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafeChat — Human Label Verifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161b26;
+    --surface2: #1e2535;
+    --border: #2a3147;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 14px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #a78bfa, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+
+  .stats-bar {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 22px;
+    text-align: center;
+    min-width: 120px;
+  }
+  .stat-card .val { font-size: 1.6rem; font-weight: 700; color: var(--accent2); }
+  .stat-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  .progress-wrap {
+    width: 100%; max-width: 760px;
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 10px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a78bfa);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 100%;
+    max-width: 760px;
+    margin-bottom: 20px;
+    transition: transform 0.2s;
+  }
+
+  .message-text {
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 18px;
+    padding: 20px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border-left: 4px solid var(--accent);
+    word-break: break-all;
+  }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .ai-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .dot-safe { background: var(--green); }
+  .dot-offensive { background: var(--red); }
+
+  .btn-row {
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+
+  .btn {
+    flex: 1; min-width: 120px;
+    padding: 16px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-safe {
+    background: linear-gradient(135deg, #166534, #15803d);
+    color: #bbf7d0;
+    border: 1px solid #166534;
+  }
+  .btn-offensive {
+    background: linear-gradient(135deg, #7f1d1d, #b91c1c);
+    color: #fecaca;
+    border: 1px solid #7f1d1d;
+  }
+  .btn-skip {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    flex: 0;
+    padding: 16px 20px;
+  }
+
+  .results-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 100%;
+    max-width: 760px;
+    display: none;
+  }
+  .results-card h2 {
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    color: var(--accent2);
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .metric-box {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+  .metric-box .mval {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .metric-box .mlbl {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .report-pre {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 16px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text);
+    white-space: pre;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+  }
+
+  .done-card {
+    text-align: center;
+    padding: 48px;
+  }
+  .done-card h2 { font-size: 2rem; margin-bottom: 12px; color: var(--green); }
+  .done-card p { color: var(--muted); margin-bottom: 24px; }
+
+  .eval-btn {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .eval-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 SafeChat Label Verifier</h1>
+  <p>Review AI-predicted labels from real chat messages. Your corrections become the honest ground truth.</p>
+</header>
+
+<div class="stats-bar">
+  <div class="stat-card"><div class="val" id="statTotal">—</div><div class="lbl">Total Messages</div></div>
+  <div class="stat-card"><div class="val" id="statDone">—</div><div class="lbl">Verified</div></div>
+  <div class="stat-card"><div class="val" id="statLeft">—</div><div class="lbl">Remaining</div></div>
+  <div class="stat-card"><div class="val" id="statPct">—</div><div class="lbl">Complete</div></div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+</div>
+
+<div class="card" id="mainCard">
+  <div class="message-text" id="msgText">Loading…</div>
+  <div class="ai-badge">
+    <span class="dot" id="aiDot"></span>
+    AI predicted: <strong id="aiLabel">—</strong>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-safe" onclick="label('Not_offensive')">✅ Safe / Not Offensive</button>
+    <button class="btn btn-offensive" onclick="label('Profanity')">🚫 Offensive / Hate Speech</button>
+    <button class="btn btn-skip" onclick="skip()">⏭ Skip</button>
+  </div>
+</div>
+
+<div class="card done-card" id="doneCard" style="display:none">
+  <h2>🎉 All Done!</h2>
+  <p>You have verified all messages. Click below to generate your honest evaluation metrics.</p>
+  <button class="eval-btn" onclick="runEval()">📊 Generate Real Metrics</button>
+</div>
+
+<div class="results-card" id="resultsCard">
+  <h2>📊 Honest Evaluation Results</h2>
+  <div class="metric-grid">
+    <div class="metric-box"><div class="mval" id="mAcc">—</div><div class="mlbl">Accuracy</div></div>
+    <div class="metric-box"><div class="mval" id="mPre">—</div><div class="mlbl">Precision</div></div>
+    <div class="metric-box"><div class="mval" id="mRec">—</div><div class="mlbl">Recall</div></div>
+    <div class="metric-box"><div class="mval" id="mF1">—</div><div class="mlbl">F1-Score</div></div>
+    <div class="metric-box"><div class="mval" id="mCount">—</div><div class="mlbl">Verified Samples</div></div>
+  </div>
+  <div class="report-pre" id="reportPre"></div>
+</div>
+
+<script>
+let items = [], verified = {}, currentIdx = 0;
+
+async function load() {
+  const res = await fetch('/api/items');
+  const data = await res.json();
+  items = data.items;
+  verified = data.verified;
+  // Find first unverified
+  currentIdx = items.findIndex(i => !verified[i.text]);
+  if (currentIdx === -1) currentIdx = items.length;
+  render();
+}
+
+function render() {
+  const done = Object.keys(verified).length;
+  const total = items.length;
+  const left = items.filter(i => !verified[i.text]).length;
+  const pct = Math.round(done / total * 100);
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statDone').textContent = done;
+  document.getElementById('statLeft').textContent = left;
+  document.getElementById('statPct').textContent = pct + '%';
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  if (left === 0) {
+    document.getElementById('mainCard').style.display = 'none';
+    document.getElementById('doneCard').style.display = 'block';
+    return;
+  }
+
+  // Find next unverified item
+  while (currentIdx < items.length && verified[items[currentIdx].text]) {
+    currentIdx++;
+  }
+
+  if (currentIdx >= items.length) {
+    document.getElementById('mainCard').style.display = 'none';
+    document.getElementById('doneCard').style.display = 'block';
+    return;
+  }
+
+  const item = items[currentIdx];
+  document.getElementById('msgText').textContent = item.text;
+  document.getElementById('aiLabel').textContent = item.ai_label;
+
+  const safe = ['Not_offensive', 'Not_in_intended_language'];
+  const isSafe = safe.includes(item.ai_label);
+  document.getElementById('aiDot').className = 'dot ' + (isSafe ? 'dot-safe' : 'dot-offensive');
+}
+
+async function label(humanLabel) {
+  if (currentIdx >= items.length) return;
+  const item = items[currentIdx];
+  const res = await fetch('/api/label', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: item.text, label: humanLabel})
+  });
+  const data = await res.json();
+  verified[item.text] = humanLabel;
+  currentIdx++;
+  render();
+}
+
+function skip() {
+  currentIdx++;
+  render();
+}
+
+async function runEval() {
+  document.getElementById('doneCard').querySelector('button').textContent = '⏳ Computing…';
+  const res = await fetch('/api/evaluate');
+  const data = await res.json();
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+  document.getElementById('mAcc').textContent   = data.accuracy + '%';
+  document.getElementById('mPre').textContent   = data.precision + '%';
+  document.getElementById('mRec').textContent   = data.recall + '%';
+  document.getElementById('mF1').textContent    = data.f1 + '%';
+  document.getElementById('mCount').textContent = data.verified_count;
+  document.getElementById('reportPre').textContent = data.report;
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resultsCard').scrollIntoView({behavior: 'smooth'});
+}
+
+load();
+</script>
+</body>
+</html>

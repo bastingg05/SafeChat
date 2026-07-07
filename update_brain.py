@@ -1,41 +1,17 @@
-import os
-import shutil
 import subprocess
+import sys
 
-print("========================================")
-print("INITIATING AI BRAIN EXPORT & UPDATE")
-print("========================================")
-
-model_dir = "./finetuned_model"
-backup_dir = "./finetuned_model_backup"
-
-if os.path.exists(model_dir):
-    print("1. Creating backup of the current Brain...")
-    if os.path.exists(backup_dir):
-        shutil.rmtree(backup_dir)
-    shutil.copytree(model_dir, backup_dir)
-    print("   [+] Backup secured in ./finetuned_model_backup")
-else:
-    print("1. No existing Brain found. Will train a fresh one.")
-
-print("\n2. Retraining the Brain with the latest Memory (Dataset)...")
-print("   (This may take 10-20 minutes depending on your hardware)")
+print("==================================================")
+print("🧠 STARTING BRAIN EXPORT & AI RE-TRAINING 🧠")
+print("==================================================")
 
 try:
-    # Run the training script directly
-    subprocess.run(["python", "train_model.py"], check=True)
-    if os.path.exists(backup_dir):
-        shutil.rmtree(backup_dir)
-    print("\n   [+] Brain successfully updated and exported to ./finetuned_model!")
-except subprocess.CalledProcessError:
-    print("\n   [!] ERROR: Brain update failed! Restoring from backup...")
-    if os.path.exists(backup_dir):
-        if os.path.exists(model_dir):
-            shutil.rmtree(model_dir)
-        shutil.copytree(backup_dir, model_dir)
-        print("   [+] Restoration complete. Previous Brain is safe.")
-    exit(1)
-
-print("\n========================================")
-print("BRAIN EXPORT COMPLETE.")
-print("========================================")
+    print("\n[1/2] Updating dataset splits...")
+    subprocess.run([sys.executable, "create_holdout.py"], check=True)
+    
+    print("\n[2/2] Baking new memory into AI weights (This may take a minute)...")
+    subprocess.run([sys.executable, "train_model.py"], check=True)
+    
+    print("\n✅ Brain successfully exported! The AI is now permanently smarter.")
+except Exception as e:
+    print(f"\n❌ Error during Brain Export: {e}")

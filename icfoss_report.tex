@@ -37,13 +37,13 @@
 \renewcommand{\footrulewidth}{0.4pt}
 
 \lstdefinestyle{codeStyle}{
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\scriptsize,
     breaklines=true,
     frame=single,
     numbers=left,
-    numberstyle=\tiny,
+    numberstyle=\tiny\color{gray},
     keywordstyle=\color{blue},
-    commentstyle=\color{gray},
+    commentstyle=\color{purple},
     stringstyle=\color{teal},
     showstringspaces=false,
     tabsize=4
@@ -91,6 +91,7 @@ Finally, with a continuous active learning loop and an Instant Whitelist Cache, 
 
 \clearpage
 \tableofcontents
+\listoffigures
 
 \clearpage
 \pagenumbering{arabic}
@@ -106,12 +107,12 @@ Because Manglish is entirely informal, it possesses no standardized spelling rul
 \section{The Threat of Cyberbullying and Hate Speech}
 The anonymity and reach of the internet have exacerbated issues of unsafe online communication, cyberbullying, targeted harassment, and hate speech. The lack of effective moderation tools for regional and code-mixed languages has turned many regional online spaces into toxic environments. When users can harass others using regional slurs spelled phonetically in English, standard safety algorithms fail to trigger. This leaves vulnerable populations exposed to abuse and creates a pressing demand for localized, intelligent moderation systems.
 
-\sectionsection{Problem Statement}
+\section{Problem Statement}
 Standard messaging platforms either lack automated moderation entirely or rely on rudimentary, hardcoded keyword-blocking systems. These legacy systems are easily bypassed by malicious users (trolls). A user can simply misspell a slur (e.g., typing a slur as "myyyyyyrr" or "m@yre" instead of its base form) to evade detection. Furthermore, a troll can type the slur in Native Malayalam script, completely bypassing western AI models that only understand ASCII characters. 
 
 Additionally, machine learning models suffer from severe dataset bias. They often misclassify innocent words simply because those words share substrings with vulgar terms, or because they frequently appear in abusive contexts within the training data. For example, the Malayalam word for a specific food item ("poori") shares its exact spelling with a severe derogatory slur. A standard AI will flag discussions about food as hate speech, ruining the user experience. There is a critical need for a live chat ecosystem that utilizes advanced mathematical pre-processing to normalize text, a robust transformer-based AI to understand deep context, and a live feedback loop to correct biases on the fly.
 
-\sectionsection{Objectives}
+\section{Objectives}
 The primary objective of the Safe Chat System is to research, design, and deploy an intelligent, adaptive messaging platform capable of securing code-mixed Malayalam communication. The specific objectives are defined as follows:
 \begin{itemize}
     \item \textbf{Data Engineering:} To engineer a massive, robust code-mixed dataset by merging, mapping, and mathematically deduplicating data from multiple open-source repositories and synthetic generation scripts, resulting in a balanced training foundation.
@@ -122,25 +123,27 @@ The primary objective of the Safe Chat System is to research, design, and deploy
     \item \textbf{Active Learning:} To establish a continuous active learning pipeline that captures user feedback from the UI and automatically re-trains the model upon server shutdown, ensuring the AI evolves alongside internet slang.
 \end{itemize}
 
-\chapter{LITERATURE REVIEW}
+\chapter{SYSTEM REQUIREMENTS AND SPECIFICATIONS}
+\section{Hardware Requirements}
+The development and deployment of the Safe Chat AI model requires substantial computational resources, primarily due to the heavy demands of Transformer-based NLP architectures.
+\begin{itemize}
+    \item \textbf{Processor (CPU):} Minimum Intel Core i5 or AMD Ryzen 5. An 8-core processor is recommended for parallel data processing.
+    \item \textbf{Memory (RAM):} Minimum 16 GB RAM. 32 GB is highly recommended for loading large datasets into memory during the data engineering phase.
+    \item \textbf{Graphics Processing Unit (GPU):} A dedicated NVIDIA GPU (e.g., RTX 3060, RTX 4070, or cloud equivalents like Tesla T4/V100) with at least 8 GB of VRAM is absolutely necessary for fine-tuning the MuRIL model within a practical timeframe. 
+    \item \textbf{Storage:} 50 GB of fast NVMe SSD storage for datasets, virtual environments, and storing large model weight files (\texttt{model.bin} and \texttt{.safetensors}).
+\end{itemize}
 
-\section{Challenges in Code-Mixed Language Processing}
-Natural Language Processing (NLP) has made monumental strides in recent years, largely driven by transformer architectures like BERT and GPT. However, the vast majority of NLP research has been focused on high-resource languages, predominantly English. Code-mixed languages, which involve the frequent alternation between two or more languages within a single utterance, present a unique set of challenges that break traditional NLP pipelines.
-
-Code-mixing in India typically involves a regional language (like Malayalam, Hindi, or Tamil) mixed with English. The challenges include:
-\begin{enumerate}
-    \item \textbf{Lack of Standard Orthography:} Because the regional language is typed using the Latin script, there is no standard spelling. The Malayalam word for "how" can be typed as "engane", "egane", "enganne", or "yengane".
-    \item \textbf{Morphological Complexity:} Malayalam is a highly agglutinative language. When mixed with English, words are often fused together (e.g., adding English suffixes to Malayalam root words).
-    \item \textbf{Data Scarcity:} There is a severe lack of large, annotated datasets for code-mixed languages, making it difficult to train deep learning models effectively.
-\end{enumerate}
-
-\section{Previous Approaches to Hate Speech Detection}
-Early attempts at hate speech detection relied on dictionary-based matching and keyword blacklists. These methods proved highly ineffective, as users quickly learned to circumvent them by using spaces, special characters, or phonetic variations.
-
-Subsequent approaches utilized traditional machine learning algorithms, such as Support Vector Machines (SVM) and Naive Bayes, utilizing TF-IDF (Term Frequency-Inverse Document Frequency) vectors. While these models performed better, they lacked contextual understanding. They treated sentences as "bags of words" and failed to grasp the semantic relationship between words, leading to high false-positive rates when offensive words were used in non-offensive contexts (e.g., reclaiming slurs, or words with dual meanings).
-
-\section{The Advent of Transformer Models}
-The introduction of Transformer architectures revolutionized NLP by allowing models to process words in relation to all other words in a sentence, capturing deep semantic context. Models like mBERT (Multilingual BERT) provided a foundation for processing multiple languages. However, for Indian languages, Google's MuRIL (Multilingual Representations for Indian Languages) proved superior. MuRIL was specifically pre-trained on a vast corpus of Indian text, including transliterated and code-mixed data, making it the ideal base model for the Safe Chat System.
+\section{Software Requirements}
+The system is built heavily on Python, leveraging the most modern data science and web frameworks available.
+\begin{itemize}
+    \item \textbf{Operating System:} Windows 10/11, macOS, or any modern Linux distribution (Ubuntu 20.04+ recommended for server deployment).
+    \item \textbf{Language:} Python 3.9 or higher.
+    \item \textbf{Deep Learning Frameworks:} \texttt{PyTorch} and Hugging Face \texttt{Transformers} for defining and training the neural network.
+    \item \textbf{Data Engineering Libraries:} \texttt{Pandas} and \texttt{NumPy} for massive dataset manipulation; \texttt{scikit-learn} for machine learning metrics and TF-IDF implementation.
+    \item \textbf{Natural Language Processing Libraries:} \texttt{indic-transliteration} for converting Native script to Manglish.
+    \item \textbf{Backend Server:} \texttt{Flask} for the RESTful API and rendering HTML templates.
+    \item \textbf{Frontend Stack:} Vanilla JavaScript, HTML5, CSS3. Specifically, utilizing the Web Speech API natively built into modern browsers like Google Chrome and Mozilla Firefox.
+\end{itemize}
 
 \chapter{SYSTEM ARCHITECTURE AND DATA ENGINEERING}
 
@@ -166,15 +169,46 @@ Following transliteration, the text enters a sophisticated regular expression (R
     \item \textbf{Semantic Isolation (The Food Context Fix):} The Regex engine surgically separates identical-looking words based on semantic context, solving severe dataset bias. A major achievement of this layer is Contextual Protection. For example, the Malayalam word "poori" translates to a puffed bread (a food item), but shares its exact spelling with a severe derogatory slur. Standard AI models inevitably flag discussions about food as hate speech. The Regex firewall is programmed to detect surrounding food-related vocabulary (e.g., "curry", "bhaji", "masala") and instantly neutralize the phrase by replacing the entire substring with a safe token (e.g., "food") before classification. This entirely eliminates false positive predictions, protecting normal user conversations.
 \end{enumerate}
 
-\subsection{TF-IDF Cosine Similarity Engine}
-The final layer of the firewall is the Cosine Similarity Engine. Using \textit{scikit-learn}, character n-grams (groupings of 2 to 3 characters) are extracted from the user's text and mapped to mathematical vectors. The engine measures the angular distance (cosine similarity) between the user's word vectors and a pre-defined array of known base slurs. 
+\subsection{Mathematical Foundations: TF-IDF Cosine Similarity Engine}
+The final layer of the firewall is the Cosine Similarity Engine. Using \textit{scikit-learn}, character n-grams (groupings of 2 to 3 characters) are extracted from the user's text and mapped to mathematical vectors. The engine relies on two foundational concepts:
 
-Operating on a strict 0.85 threshold, the engine evaluates phonetic and structural similarity. If a user types a highly obfuscated variation of a slur that evades Regex, the Cosine Similarity engine will mathematically determine its proximity to the base slur and automatically snap it to the known offensive token. This approach effectively catches infinite spelling variations without generating false positives on innocent short words, proving vastly superior to traditional keyword blacklists.
+\textbf{1. Term Frequency-Inverse Document Frequency (TF-IDF):}
+This numerical statistic reflects how important a word or n-gram is to a document in a collection or corpus.
+The Term Frequency (TF) measures how frequently a term $t$ appears in a document $d$:
+\begin{equation}
+TF(t, d) = \frac{\text{Number of times } t \text{ appears in } d}{\text{Total number of terms in } d}
+\end{equation}
+
+The Inverse Document Frequency (IDF) measures how important a term is across the entire corpus $D$:
+\begin{equation}
+IDF(t, D) = \log \left( \frac{\text{Total number of documents } N}{\text{Number of documents containing term } t} \right)
+\end{equation}
+
+The TF-IDF weight is the product of these two values:
+\begin{equation}
+\text{TF-IDF}(t, d, D) = TF(t, d) \times IDF(t, D)
+\end{equation}
+
+\textbf{2. Cosine Similarity:}
+Once the text is converted into vectors, we measure the cosine of the angle between them to determine similarity, irrespective of their magnitude. For vectors $A$ and $B$:
+\begin{equation}
+\text{Cosine Similarity}(A, B) = \cos(\theta) = \frac{A \cdot B}{\|A\| \|B\|} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} (A_i)^2} \sqrt{\sum_{i=1}^{n} (B_i)^2}}
+\end{equation}
+
+Operating on a strict 0.85 threshold, the engine evaluates phonetic and structural similarity. If a user types a highly obfuscated variation of a slur that evades Regex, the Cosine Similarity engine will mathematically determine its proximity to the base slur vector and automatically snap it to the known offensive token. This approach catches infinite spelling variations.
 
 \chapter{ARTIFICIAL INTELLIGENCE AND FINE-TUNING}
 
-\section{The MuRIL Architecture}
-The core intelligence of the Safe Chat System is powered by \textbf{MuRIL} (Multilingual Representations for Indian Languages), developed by Google. MuRIL is a BERT-based transformer model pre-trained on 17 Indian languages and their transliterated counterparts. Because MuRIL already possesses a deep understanding of Indian linguistic structures, it requires significantly less data and computational power to fine-tune for specific tasks compared to training a model from scratch.
+\section{The MuRIL Architecture and Transformer Mechanics}
+The core intelligence of the Safe Chat System is powered by \textbf{MuRIL} (Multilingual Representations for Indian Languages), developed by Google. MuRIL is a BERT-based transformer model pre-trained on 17 Indian languages and their transliterated counterparts.
+
+\subsection{Self-Attention Mechanism}
+At the heart of the MuRIL model is the Self-Attention mechanism, which allows the model to weigh the importance of different words in a sentence relative to each other, capturing deep semantic context. 
+For a given sequence of word embeddings, the model creates three matrices: Query ($Q$), Key ($K$), and Value ($V$). The attention score is calculated as:
+\begin{equation}
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\end{equation}
+where $d_k$ is the dimension of the key vectors. This equation mathematically explains how MuRIL understands that the word "myre" acts differently depending on the surrounding words in the sentence.
 
 \section{The Fine-Tuning Pipeline}
 The fine-tuning process was orchestrated using the Hugging Face \texttt{transformers} library. The custom dataset was tokenized and fed into the MuRIL architecture using a \texttt{SequenceClassification} head. 
@@ -188,50 +222,29 @@ The model was trained to classify text into five nuanced safety buckets, moving 
     \item \textbf{Not\_in\_intended\_language:} Text that the model cannot process or falls outside the domain.
 \end{itemize}
 
-During training, specialized hyperparameters were selected to optimize convergence and prevent overfitting. The model achieved remarkable accuracy, successfully mapping the complex morphological structures of Manglish to their appropriate offensive categories. The final mathematical weights, configuration files, and tokenizers were saved into a dedicated \texttt{finetuned\_model/} directory, serving as the "Brain" of the backend server.
+During training, the optimization process utilized the Cross-Entropy Loss function to minimize classification error:
+\begin{equation}
+\text{Loss} = -\sum_{c=1}^{M} y_{o,c} \log(p_{o,c})
+\end{equation}
+where $M$ is the number of classes (5), $y_{o,c}$ is a binary indicator of whether class $c$ is the correct classification for observation $o$, and $p_{o,c}$ is the predicted probability that observation $o$ belongs to class $c$. 
 
-\chapter{FRONTEND INTERFACE AND REAL-TIME ARCHITECTURE}
+The model achieved remarkable accuracy, mapping complex morphological structures of Manglish to their offensive categories. The final weights were saved into the \texttt{finetuned\_model/} directory.
 
-\section{Live Asynchronous Polling Architecture}
-To transition the application from a static web page to a true "Live Chat Room", a sophisticated asynchronous polling mechanism was designed in JavaScript. Modern messaging applications require real-time updates without forcing the user to manually refresh the browser.
+\chapter{RECENT IMPLEMENTATIONS AND CAPABILITIES}
 
-The frontend executes a continuous, silent HTTP \texttt{fetch} request to the \texttt{/api/messages} endpoint on a strict 2.5-second interval. The backend Flask server maintains an in-memory dictionary of all messages sent during the session. When the frontend receives the JSON payload of messages, it validates incoming message IDs against a local Document Object Model (DOM) cache. If a message ID already exists on the screen, the rendering function silently skips it, preventing UI duplication. If a new message is detected, it is instantly drawn onto the screen and the chat window smoothly scrolls to the bottom.
+\section{Dynamic AI Integration with Vegam}
+Recent updates to the system have dramatically expanded its capabilities by integrating the \texttt{vegam-model} as a supplementary verification and fallback engine. 
 
-This architecture allows multiple users across different browser instances (or entirely different devices on the same network) to communicate in real-time, instantly receiving new messages and moderation updates, providing a seamless and highly responsive user experience.
+\subsection{The Downloader Script (\texttt{download\_vegam.py})}
+To ensure complete portability and ease of setup, a dedicated Python utility was written to programmatically fetch the Vegam model weights. By utilizing Hugging Face Hub's API, the script authenticates (if necessary) and dynamically pulls the massive \texttt{model.bin} and \texttt{config.json} files directly into the local \texttt{vegam-model} directory. This prevents administrators from having to manually download gigabytes of data and ensures version consistency across all deployment environments.
 
-\section{Speech-to-Text (STT) Dictation System}
-To dramatically enhance accessibility and user experience, the system features a built-in dictation tool modeled after modern commercial applications. Leveraging the browser's native \textbf{Web Speech API}, the frontend interfaces directly with the user's microphone. 
+\section{Advanced Metric Computation Pipeline}
+Model evaluation is no longer a static process. The introduction of \texttt{calculate\_metrics.py} and \texttt{evaluate\_metrics.py} establishes a robust, programmatic pipeline for constantly assessing the AI's real-world performance.
 
-When the user activates the microphone button, the JavaScript \texttt{SpeechRecognition} interface is initialized and explicitly configured with the language parameter \texttt{ml-IN} (Malayalam - India). As the user speaks, the audio is processed rapidly by the browser's native cloud engines, returning highly accurate transcriptions in Native Malayalam script.
+These scripts utilize \texttt{scikit-learn} to generate classification reports that compute precision, recall, and F1-scores down to the decimal point across all five categories. By maintaining a clear mathematical read on the AI's performance, developers can identify exactly which of the five buckets is underperforming (e.g., if the AI starts confusing general profanity with targeted offense), triggering targeted retraining loops.
 
-Crucially, the system does not automatically broadcast the transcribed audio. Instead, it injects the transcribed text directly into the chat input \texttt{textarea}. This allows the user to review, edit, and append text to the dictation before pressing send. When sent, the Backend Transliteration Layer (discussed in Chapter 3) instantly catches the Native script, translates it to Manglish, and feeds it to the AI for seamless, real-time moderation.
-
-By utilizing the client-side Web Speech API rather than a heavy server-side model like OpenAI's Whisper, the system achieves near-instantaneous transcription with zero computational cost to the Python backend server, ensuring the platform remains lightweight and highly scalable.
-
-\section{Dynamic UI and Moderation Feedback}
-The frontend is styled using custom CSS to provide a premium, modern aesthetic utilizing glassmorphism and smooth micro-animations. Messages are color-coded based on the AI's classification bucket:
-\begin{itemize}
-    \item \textbf{Safe messages} appear normally.
-    \item \textbf{Mild profanity} is highlighted with a yellow warning border.
-    \item \textbf{High offense} messages are partially blurred with an orange warning banner.
-    \item \textbf{Extreme hate speech} is heavily blurred, flagged with a red banner, and requires the user to explicitly click an "Eye" icon to reveal the content, protecting users from immediate exposure to toxic content.
-\end{itemize}
-
-Furthermore, every flagged message includes interactive "Classify" buttons (Thumbs Up / Thumbs Down). This allows users to actively report false positives or confirm hate speech directly from the chat interface, powering the continuous learning loop.
-
-\chapter{CONTINUOUS ACTIVE LEARNING}
-
-\section{The Instant Whitelist Cache}
-No AI model is perfect, and contextual misclassifications (false positives) are inevitable in complex languages. To provide administrative control and instantly correct AI mistakes, the Safe Chat System features an Instant Whitelist Cache.
-
-When a user reports a message using the UI feedback buttons, the frontend sends an API request to the backend. The backend immediately logs the phrase and its corrected label into a persistent \texttt{feedback\_log.csv} and an in-memory dictionary. If any user types that exact phrase again, the backend intercepts the text before it reaches the AI model, checks the Whitelist Cache, and forces the corrected label. This ensures that the system learns instantly from user feedback at the application layer, completely overriding mathematical biases.
-
-\section{Graceful Shutdown and Automated Retraining}
-To ensure the AI model itself evolves over time, the system features a custom OS-level graceful shutdown intercept. When the server administrator attempts to terminate the Flask server (e.g., via Ctrl+C in the terminal), the Python script intercepts the \texttt{KeyboardInterrupt} signal. 
-
-The system pauses termination and prompts the administrator via the terminal, asking if they wish to export the session's feedback and re-train the model. If approved, the server elegantly closes the active ports and launches an asynchronous \texttt{update\_brain.py} sub-process. This script extracts all the user feedback collected during the session, appends it to the master training dataset, and initiates a Hugging Face training loop to fine-tune the MuRIL model on the newly discovered vocabulary. 
-
-This automated pipeline ensures the platform actively learns and adapts to new linguistic trends, emerging slang, and evolving trolling tactics without requiring manual intervention from data scientists.
+\section{Data Pipeline and Merging Architecture}
+The system's intelligence relies heavily on data volume and variance. The \texttt{merge\_new\_datasets.py} script serves as the ETL (Extract, Transform, Load) backbone for the project. When new chunks of chat data or offensive repositories are discovered online, this script mathematically aligns the incoming columns with the master dataset structure, sanitizes null values, and performs index-level deduplication to ensure the AI is never over-trained on redundant phrasing.
 
 \chapter{RESULTS AND EVALUATION}
 
@@ -252,23 +265,56 @@ The evaluation pipeline automatically generated several visual diagnostic tools 
     \item \textbf{Confidence Histogram (\texttt{confidence\_histogram.png}):} This chart mapped the statistical probability distributions of the AI's predictions. It demonstrated that the model was highly confident (scoring above 95\%) on clear hate speech, allowing the frontend to apply extreme blurring with certainty.
 \end{enumerate}
 
-\section{Overall Performance}
-The integration of the multi-layered pre-processing firewall alongside the fine-tuned MuRIL architecture resulted in a highly accurate moderation engine. The Transliteration Layer successfully closed the Native script vulnerability, allowing the AI to flag Native Malayalam slurs with identical accuracy to their Manglish counterparts. Furthermore, the Regex Contextual Disambiguation successfully resolved severe dataset bias, dropping the false positive rate on isolated innocent words to near zero.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{confusion_matrix.png}
+    \caption{Confusion Matrix displaying classification accuracy across all buckets.}
+    \label{fig:confusion}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{confidence_histogram.png}
+    \caption{Confidence Histogram showing probability distributions of predictions.}
+    \label{fig:confidence}
+\end{figure}
 
 \chapter{CONCLUSION AND FUTURE SCOPE}
 
 \section{Conclusion}
 The Safe Chat System represents a massive leap forward in the automated moderation of regional, code-mixed digital communication. By meticulously engineering a robust dataset and combining a mathematical Regex/Cosine-Similarity firewall with an active Transliteration Engine, the system successfully bridges the gap between chaotic human typing and structured machine learning. 
 
-The fine-tuned MuRIL AI model demonstrates exceptional capability in understanding the deep semantic context of Manglish. Coupled with the live continuous-feedback loop, the Instant Whitelist Cache, and the automated retraining pipeline, the platform is not merely a static filter, but a highly adaptive, self-learning ecosystem. The inclusion of the Web Speech API and the asynchronous polling architecture ensures that the platform delivers a modern, highly responsive, and accessible user experience, proving that complex AI moderation can be implemented without sacrificing application speed or usability.
+The fine-tuned MuRIL AI model demonstrates exceptional capability in understanding the deep semantic context of Manglish. Coupled with the live continuous-feedback loop, the Instant Whitelist Cache, and the automated retraining pipeline, the platform is not merely a static filter, but a highly adaptive, self-learning ecosystem. The inclusion of the Web Speech API and the asynchronous polling architecture ensures that the platform delivers a modern, highly responsive, and accessible user experience.
 
 \section{Future Scope}
 While the current system is highly capable, several avenues for future enhancement exist:
 \begin{itemize}
     \item \textbf{WebSocket Integration:} Upgrading the Live Polling architecture from an HTTP \texttt{fetch} loop to a true WebSocket-based stream (e.g., utilizing \texttt{Flask-SocketIO}) would eliminate polling overhead and provide true zero-latency, bi-directional communication.
-    \item \textbf{Cloud Deployment and API Scalability:} Deploying the fine-tuned model to a dedicated cloud cluster (e.g., AWS SageMaker or Google Cloud AI) would allow the moderation engine to be offered as a standalone REST API, enabling third-party developers to integrate Manglish hate speech detection into their own platforms.
-    \item \textbf{Multi-Modal Moderation:} Expanding the moderation pipeline to process and classify images (memes) and direct audio streams, moving beyond purely text-based evaluation.
-    \item \textbf{Language Expansion:} Leveraging the multilingual capabilities of the underlying MuRIL architecture to expand the core dataset to support additional regional Indian languages (e.g., Tanglish, Hinglish) within the exact same software framework.
+    \item \textbf{Cloud Deployment and API Scalability:} Deploying the fine-tuned model to a dedicated cloud cluster (e.g., AWS SageMaker or Google Cloud AI) would allow the moderation engine to be offered as a standalone REST API.
 \end{itemize}
+
+\clearpage
+\appendix
+\chapter{CORE IMPLEMENTATION SOURCE CODE}
+
+This appendix contains the core Python source code driving the Safe Chat platform, including the backend server architecture, AI evaluation pipelines, dataset engineering logic, and local model synchronization scripts. 
+
+\section{Backend Architecture: \texttt{chat\_server.py}}
+\lstinputlisting[language=Python]{chat_server.py}
+
+\section{Data Engineering: \texttt{generate\_synthetic\_data.py}}
+\lstinputlisting[language=Python]{generate_synthetic_data.py}
+
+\section{Model Evaluation Metrics: \texttt{calculate\_metrics.py}}
+\lstinputlisting[language=Python]{calculate_metrics.py}
+
+\section{Local Weights Synchronization: \texttt{download\_vegam.py}}
+\lstinputlisting[language=Python]{download_vegam.py}
+
+\section{Dataset Transformation: \texttt{merge\_new\_datasets.py}}
+\lstinputlisting[language=Python]{merge_new_datasets.py}
+
+\section{Inference Testing: \texttt{test\_finetuned.py}}
+\lstinputlisting[language=Python]{test_finetuned.py}
 
 \end{document}

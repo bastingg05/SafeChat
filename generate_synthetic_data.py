@@ -255,7 +255,35 @@ safe_templates_en = [
     "palliyile kurish varakkal chadanganu",
     "kurish varachu prarthanakal nadathi",
     "ee kurish valare paavanamaanu",
-    "kristhyani aacharangalil kurish prasakthamaanu"
+    "kristhyani aacharangalil kurish prasakthamaanu",
+    
+    # --- Targeted Anti-Bias Safe Sentences (Manglish) ---
+    "da ninak asugam egane und",
+    "da ninte asugam kuranjo",
+    "ninak egane und ipo",
+    "maryadakku padikkanam",
+    "ninte asugam maariyo",
+    "da namukk purath povam",
+    "da nee evide aanu",
+    "ninte ullil nalla fire und",
+    "ninak vishakkunnundo",
+    "maryadakku irikkanam",
+    "asugam kuranjoda",
+    "ninak asugam kooduthal aano",
+    "ninte asugam engane und",
+    "ninte vandi evide",
+    "da ninte veedu evideya",
+    "ninak pattanulla pani allada ithu",
+    "maryadak samsarikkanam",
+    "da maryadak irunnonam",
+    "nee maryadak irunno",
+    "asugam mariyo",
+    "egane und ipol",
+    "asugam valare kuranjo",
+    "ninak nalla budhi und",
+    "ninte phone evide",
+    "da mari nilk angot",
+    "mari ninnu samsarikku"
 ]
 
 # Contextual templates for SAFE (Native Malayalam)
@@ -395,12 +423,12 @@ def generate_data():
                 text = template
             synthetic_rows.append([text, 'Offensive_Untargetede', ''])
             
-    # Generate Safe rows (1000 Manglish + 1000 Native)
-    for _ in range(1000):
+    # Generate Safe rows (5000 Manglish + 5000 Native)
+    for _ in range(5000):
         text = random.choice(safe_templates_en)
         synthetic_rows.append([text, 'Not_offensive', ''])
         
-    for _ in range(1000):
+    for _ in range(5000):
         text = random.choice(safe_templates_ml)
         synthetic_rows.append([text, 'Not_offensive', ''])
         

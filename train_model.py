@@ -4,9 +4,10 @@ from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
 
 print("Loading dataset...")
-df_raw = pd.read_csv('mal_full_offensive_train.csv', sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
+# Use train_only.csv (80% holdout split) — never the full CSV, to prevent data leakage
+df_raw = pd.read_csv('train_only.csv', sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
 
-# Use the entire dataset and drop exact duplicates, keeping the LAST instance (so user feedback overrides)
+# Drop exact duplicates, keeping the LAST instance (so user feedback overrides)
 df = df_raw.dropna(subset=['text', 'label']).drop_duplicates(subset=['text'], keep='last')
 
 # Map dataset string labels to model expected string labels
@@ -35,8 +36,8 @@ print(f"Total valid training examples: {len(df)}")
 
 dataset = Dataset.from_pandas(df[['text', 'label_id']].rename(columns={'label_id': 'label'}))
 
-# Split into train and eval (90/10)
-dataset = dataset.train_test_split(test_size=0.1, seed=42)
+# Small internal validation split (5%) just for training loss monitoring — NOT the final holdout
+dataset = dataset.train_test_split(test_size=0.05, seed=99)
 
 import os
 model_id = "./finetuned_model" if os.path.exists("./finetuned_model") else "Hate-speech-CNERG/malayalam-codemixed-abusive-MuRIL"

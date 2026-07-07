@@ -11,20 +11,16 @@ print("========================================")
 print("AI BRAIN EVALUATION & VISUALIZATION")
 print("========================================")
 
-print("1. Loading unseen test dataset...")
-df_raw = pd.read_csv('mal_full_offensive_train.csv', sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
-df_valid = df_raw.dropna(subset=['text', 'label'])
-df_test = df_valid.sample(n=min(len(df_valid), 2000), random_state=99).reset_index(drop=True)
+print("1. Loading HOLDOUT test dataset (never seen during training)...")
+if not os.path.exists('test_holdout.csv'):
+    print("ERROR: test_holdout.csv not found!")
+    print("Please run: python create_holdout.py first")
+    exit(1)
 
-label_mapping = {
-    'Not_offensive': 'Not_offensive',
-    'not-malayalam': 'Not_in_intended_language',
-    'Offensive_Targeted_Insult_Group': 'Off_target_group',
-    'Offensive_Untargetede': 'Profanity',
-    'Offensive_Targeted_Insult_Individual': 'Off_target_ind'
-}
-df_test['mapped_label'] = df_test['label'].map(label_mapping)
-df_test = df_test.dropna(subset=['mapped_label'])
+df_holdout = pd.read_csv('test_holdout.csv', sep='\t', header=None, names=['text', 'mapped_label'], on_bad_lines='skip')
+df_holdout = df_holdout.dropna(subset=['text', 'mapped_label'])
+df_test = df_holdout
+print(f"Loaded {len(df_test)} holdout sentences for honest evaluation.")
 
 print("2. Loading exported AI Brain (./finetuned_model)...")
 if not os.path.exists("./finetuned_model"):
