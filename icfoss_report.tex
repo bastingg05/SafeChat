@@ -1,7 +1,16 @@
 \documentclass[12pt,a4paper]{report}
 
+\usepackage{iftex}
+\ifPDFTeX
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\newcommand{\malayalamexample}{\textit{myre in Malayalam script}}
+\else
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\newfontfamily\malayalamfont{Noto Sans Malayalam}
+\newcommand{\malayalamexample}{{\malayalamfont മൈര്}}
+\fi
 \usepackage{amsmath}
 \usepackage{array}
 \usepackage{booktabs}
@@ -13,28 +22,61 @@
 \usepackage{listings}
 \usepackage{fancyhdr}
 \usepackage{hyperref}
+\hypersetup{hidelinks}
 \usepackage{lipsum}
 
 \geometry{a4paper, margin=1in}
 \onehalfspacing
 \setlength{\parindent}{0.5in}
 \setlength{\parskip}{0.5em}
-\setlength{\headheight}{15pt}
+\setlength{\headheight}{30pt}
+\setlength{\headsep}{18pt}
 \sloppy
 
 \newcommand{\projecttitle}{Safe Chat: Real-Time Manglish \& Malayalam Hate Speech Detection System}
+\newcommand{\shortprojecttitle}{Safe Chat: Manglish \& Malayalam}
 \newcommand{\authorname}{Bastin George}
 \newcommand{\organization}{ICFOSS (International Centre for Free and Open Source Software)}
 \newcommand{\reportmonth}{\today}
+\newcommand{\headerfont}{\normalfont\scriptsize}
+\newcommand{\footerfont}{\normalfont\footnotesize}
 
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{\projecttitle}
-\fancyhead[R]{\nouppercase{\leftmark}}
-\fancyfoot[L]{\organization}
-\fancyfoot[R]{\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{}
+
+\newcommand{\leftpageheader}{%
+    \parbox[b]{0.48\headwidth}{\raggedright\headerfont\bfseries\shortprojecttitle}%
+}
+
+\newcommand{\rightpageheader}{%
+    \parbox[b]{0.48\headwidth}{\raggedleft\headerfont\nouppercase{\leftmark}}%
+}
+
+\newcommand{\alignedpagefooter}{%
+    \begin{tabular*}{\headwidth}{@{\extracolsep{\fill}}l r@{}}
+        {\footerfont\organization} & {\footerfont Page~\thepage}
+    \end{tabular*}%
+}
+
+\fancypagestyle{alignedreport}{%
+    \fancyhf{}%
+    \fancyhead[L]{\leftpageheader}%
+    \fancyhead[R]{\rightpageheader}%
+    \fancyfoot[C]{\alignedpagefooter}%
+    \renewcommand{\headrulewidth}{0.4pt}%
+    \renewcommand{\footrulewidth}{0.4pt}%
+}
+
+\fancypagestyle{plain}{%
+    \fancyhf{}%
+    \fancyhead[L]{\leftpageheader}%
+    \fancyhead[R]{\rightpageheader}%
+    \fancyfoot[C]{\alignedpagefooter}%
+    \renewcommand{\headrulewidth}{0.4pt}%
+    \renewcommand{\footrulewidth}{0.4pt}%
+}
+
+\pagestyle{alignedreport}
 
 \lstdefinestyle{codeStyle}{
     basicstyle=\ttfamily\scriptsize,
@@ -49,6 +91,32 @@
     tabsize=4
 }
 \lstset{style=codeStyle}
+
+\newcommand{\missingfigure}[1]{%
+    \fbox{%
+        \parbox[c][2in][c]{0.8\textwidth}{%
+            \centering\textit{Image file \texttt{\detokenize{#1}} is not available in this workspace.}%
+        }%
+    }%
+}
+
+\newcommand{\safeincludegraphics}[2][]{%
+    \IfFileExists{#2}{\includegraphics[#1]{#2}}{\missingfigure{#2}}%
+}
+
+\newcommand{\missinglisting}[1]{%
+    \par\noindent
+    \fbox{%
+        \parbox{0.9\textwidth}{%
+            \textit{Source file \texttt{\detokenize{#1}} is not available in this workspace.}%
+        }%
+    }%
+    \par
+}
+
+\newcommand{\safeinputlisting}[2][]{%
+    \IfFileExists{#2}{\lstinputlisting[#1]{#2}}{\missinglisting{#2}}%
+}
 
 \renewcommand{\contentsname}{CONTENTS}
 \renewcommand{\listfigurename}{LIST OF FIGURES}
@@ -78,6 +146,7 @@ prepared for\\[0.8cm]
 \setcounter{page}{1}
 
 \chapter*{ABSTRACT}
+\markboth{ABSTRACT}{}
 \addcontentsline{toc}{chapter}{ABSTRACT}
 The rapid and unprecedented expansion of digital communication channels in the state of Kerala has fundamentally transformed how individuals interact online. This digital revolution has led to the absolute dominance of Manglish—the practice of writing the Malayalam language using the English alphabet—as well as the continued heavy usage of Native Malayalam script for informal, text-based interaction. While this linguistic evolution has bridged digital divides, it has also created a catastrophic vulnerability in online safety. The Safe Chat System is an advanced, real-time messaging application designed to solve the critical issue of automated hate speech, cyberbullying, and profanity detection in highly diverse, code-mixed linguistic environments, a domain where standard, commercially available Natural Language Processing (NLP) models inherently fail.
 
@@ -107,7 +176,7 @@ Because Manglish is entirely informal, it possesses no standardized spelling rul
 \section{The Threat of Cyberbullying and Hate Speech}
 The anonymity and reach of the internet have exacerbated issues of unsafe online communication, cyberbullying, targeted harassment, and hate speech. The lack of effective moderation tools for regional and code-mixed languages has turned many regional online spaces into toxic environments. When users can harass others using regional slurs spelled phonetically in English, standard safety algorithms fail to trigger. This leaves vulnerable populations exposed to abuse and creates a pressing demand for localized, intelligent moderation systems.
 
-\section{Problem Statement}
+\sectionsection{Problem Statement}
 Standard messaging platforms either lack automated moderation entirely or rely on rudimentary, hardcoded keyword-blocking systems. These legacy systems are easily bypassed by malicious users (trolls). A user can simply misspell a slur (e.g., typing a slur as "myyyyyyrr" or "m@yre" instead of its base form) to evade detection. Furthermore, a troll can type the slur in Native Malayalam script, completely bypassing western AI models that only understand ASCII characters. 
 
 Additionally, machine learning models suffer from severe dataset bias. They often misclassify innocent words simply because those words share substrings with vulgar terms, or because they frequently appear in abusive contexts within the training data. For example, the Malayalam word for a specific food item ("poori") shares its exact spelling with a severe derogatory slur. A standard AI will flag discussions about food as hate speech, ruining the user experience. There is a critical need for a live chat ecosystem that utilizes advanced mathematical pre-processing to normalize text, a robust transformer-based AI to understand deep context, and a live feedback loop to correct biases on the fly.
@@ -158,7 +227,7 @@ To counter severe class imbalance—where safe messages vastly outnumbered hate 
 Before user input is ever passed to the neural network for classification, it is intercepted by a highly strict, multi-layered pre-processing firewall. This firewall is designed to catch trolls, normalize spelling variations, and correct contextual dataset bias, ensuring the AI only processes clean, disambiguated text.
 
 \subsection{The Transliteration Layer (Native Malayalam Support)}
-One of the most significant architectural vulnerabilities discovered during development was the system's susceptibility to Native Malayalam script. Trolls could effortlessly bypass the hate speech filters by typing slurs in their native script (e.g., typing "മൈര്" instead of "myre"). Because the core training dataset was heavily biased towards English-script Manglish, the model failed to recognize the Native script equivalents, scoring severe hate speech as 99\% safe.
+One of the most significant architectural vulnerabilities discovered during development was the system's susceptibility to Native Malayalam script. Trolls could effortlessly bypass the hate speech filters by typing slurs in their native script (e.g., typing "\malayalamexample{}" instead of "myre"). Because the core training dataset was heavily biased towards English-script Manglish, the model failed to recognize the Native script equivalents, scoring severe hate speech as 99\% safe.
 
 To solve this critical vulnerability without the need to source, annotate, and train a completely new Native dataset, a \textbf{Transliteration Layer} was engineered inside the Backend firewall. Leveraging the \texttt{indic-transliteration} Python package, all incoming messages are passed through the \texttt{sanscript} module. Any Native Malayalam characters detected are instantly and mathematically converted into OPTITRANS (ASCII-based Manglish) before the AI model ever sees them. This normalization ensures that a single AI model can effectively moderate both Manglish and Native Malayalam simultaneously, providing a unified defense mechanism.
 
@@ -232,19 +301,19 @@ The model achieved remarkable accuracy, mapping complex morphological structures
 
 \chapter{RECENT IMPLEMENTATIONS AND CAPABILITIES}
 
-\section{Dynamic AI Integration with Vegam}
-Recent updates to the system have dramatically expanded its capabilities by integrating the \texttt{vegam-model} as a supplementary verification and fallback engine. 
+\section{Telegram Bot Integration and Native Censor Bars}
+To extend the reach of the Safe Chat system beyond the web UI, a robust Telegram Bot (\texttt{telegram\_bot.py}) was engineered. Utilizing the \texttt{python-telegram-bot} library, the bot actively monitors group chats, intercepting both text messages and voice notes in real-time. Instead of using native Telegram "Spoilers" (which users can simply tap to reveal), the bot pioneers a "Permanent Censor Bar" mechanism. When toxic text is detected, the bot instantly deletes the malicious message and programmatically replaces the exact length of the original sentence with block characters (e.g., \texttt{████████}). This completely sanitizes the chat environment while retaining the conversation's flow.
 
-\subsection{The Downloader Script (\texttt{download\_vegam.py})}
-To ensure complete portability and ease of setup, a dedicated Python utility was written to programmatically fetch the Vegam model weights. By utilizing Hugging Face Hub's API, the script authenticates (if necessary) and dynamically pulls the massive \texttt{model.bin} and \texttt{config.json} files directly into the local \texttt{vegam-model} directory. This prevents administrators from having to manually download gigabytes of data and ensures version consistency across all deployment environments.
+\section{Continuous Reinforcement Learning Loop}
+To prevent the model from stagnating as internet slang evolves, a continuous active learning loop was established. The web UI features a "Report as Hate Speech" button, and an administrative Labeling Tool allows humans to correct the AI's predictions via a \texttt{/api/classify} endpoint. These corrections are actively logged and injected back into the master dataset (\texttt{mal\_full\_offensive\_train.csv}). 
 
-\section{Advanced Metric Computation Pipeline}
-Model evaluation is no longer a static process. The introduction of \texttt{calculate\_metrics.py} and \texttt{evaluate\_metrics.py} establishes a robust, programmatic pipeline for constantly assessing the AI's real-world performance.
+To automate the retraining phase, an \texttt{update\_brain.py} script was developed and tethered to the Flask server's shutdown hook. When the server is gracefully terminated, the system automatically detects new user feedback, splits a fresh 80/20 train/test holdout, and initiates a Full Parameter Fine-Tuning sequence, allowing the AI to effectively "sleep and study" before waking up smarter.
 
-These scripts utilize \texttt{scikit-learn} to generate classification reports that compute precision, recall, and F1-scores down to the decimal point across all five categories. By maintaining a clear mathematical read on the AI's performance, developers can identify exactly which of the five buckets is underperforming (e.g., if the AI starts confusing general profanity with targeted offense), triggering targeted retraining loops.
+\section{Whisper Speech-to-Text (STT) Voice Processing}
+Voice notes are a primary medium of communication in modern chat apps. To moderate audio, the system integrates the OpenAI \texttt{Whisper} library directly into the Flask backend. When a user sends a voice note via the Web UI or Telegram, the audio is converted via \texttt{FFmpeg}, mathematically transcribed by Whisper, and the resulting Malayalam transcript is fed seamlessly into the AI text pipeline for toxicity classification.
 
-\section{Data Pipeline and Merging Architecture}
-The system's intelligence relies heavily on data volume and variance. The \texttt{merge\_new\_datasets.py} script serves as the ETL (Extract, Transform, Load) backbone for the project. When new chunks of chat data or offensive repositories are discovered online, this script mathematically aligns the incoming columns with the master dataset structure, sanitizes null values, and performs index-level deduplication to ensure the AI is never over-trained on redundant phrasing.
+\section{Deep Slang Preprocessing and Neutralization}
+To combat the AI's tendency to falsely flag casual conversation, the \texttt{preprocessing.py} firewall maps heavily used, harmless Manglish slang (such as "da", "poda", "aliyan", "ninte") into the neutral mathematical token "friend". This dramatically reduces false positives and ensures the AI focuses strictly on malicious intent rather than casual linguistic tone.
 
 \chapter{RESULTS AND EVALUATION}
 
@@ -261,20 +330,20 @@ The performance of the fine-tuned MuRIL model was rigorously tested using an arr
 \section{Visualizations}
 The evaluation pipeline automatically generated several visual diagnostic tools to aid in understanding the model's behavior:
 \begin{enumerate}
-    \item \textbf{Confusion Matrix (\texttt{confusion\_matrix.png}):} This heatmap visualization provided a clear breakdown of true positives versus false positives across all five classification buckets. It highlighted areas where the model struggled, such as distinguishing between general profanity and targeted offense, guiding further dataset refinement.
-    \item \textbf{Confidence Histogram (\texttt{confidence\_histogram.png}):} This chart mapped the statistical probability distributions of the AI's predictions. It demonstrated that the model was highly confident (scoring above 95\%) on clear hate speech, allowing the frontend to apply extreme blurring with certainty.
+    \item \textbf{Confusion Matrix (\texttt{confusion\_matrix\_unseen.png}):} This heatmap visualization provided a clear breakdown of true positives versus false positives across all five classification buckets. It highlighted areas where the model struggled, such as distinguishing between general profanity and targeted offense, guiding further dataset refinement.
+    \item \textbf{Confidence Histogram (\texttt{confidence\_histogram\_unseen.png}):} This chart mapped the statistical probability distributions of the AI's predictions. It demonstrated that the model was highly confident (scoring above 95\%) on clear hate speech, allowing the frontend to apply extreme blurring with certainty.
 \end{enumerate}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{confusion_matrix.png}
+    \safeincludegraphics[width=0.8\textwidth]{prism-uploads/confusion_matrix_2.png}
     \caption{Confusion Matrix displaying classification accuracy across all buckets.}
     \label{fig:confusion}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{confidence_histogram.png}
+    \safeincludegraphics[width=0.8\textwidth]{prism-uploads/confidence_histogram_2.png}
     \caption{Confidence Histogram showing probability distributions of predictions.}
     \label{fig:confidence}
 \end{figure}
@@ -294,27 +363,199 @@ While the current system is highly capable, several avenues for future enhanceme
 \end{itemize}
 
 \clearpage
+
 \appendix
-\chapter{CORE IMPLEMENTATION SOURCE CODE}
+\chapter{CORE IMPLEMENTATION EXCERPT}
 
-This appendix contains the core Python source code driving the Safe Chat platform, including the backend server architecture, AI evaluation pipelines, dataset engineering logic, and local model synchronization scripts. 
+This appendix includes only the essential backend code required to understand the Safe Chat runtime workflow. Non-essential setup code, local environment configuration, auxiliary dataset scripts, metric utilities, downloader scripts, and full source listings are omitted to keep the appendix concise and focused.
 
-\section{Backend Architecture: \texttt{chat\_server.py}}
-\lstinputlisting[language=Python]{chat_server.py}
+The excerpt below captures the main implementation path from \texttt{prism-uploads/chat\_server.py}: text normalization, transformer-based classification, live message storage, and feedback persistence for active learning.
 
-\section{Data Engineering: \texttt{generate\_synthetic\_data.py}}
-\lstinputlisting[language=Python]{generate_synthetic_data.py}
+\section{Core Backend Moderation Flow}
+\begin{lstlisting}[language=Python]
+"""
+Abridged Safe Chat backend excerpt.
+Shows only the core runtime pipeline: normalize text, classify it,
+store chat messages, and persist administrator feedback.
+"""
 
-\section{Model Evaluation Metrics: \texttt{calculate\_metrics.py}}
-\lstinputlisting[language=Python]{calculate_metrics.py}
+import csv
+import os
+import re
+import uuid
+from datetime import datetime
 
-\section{Local Weights Synchronization: \texttt{download\_vegam.py}}
-\lstinputlisting[language=Python]{download_vegam.py}
+from flask import Flask, jsonify, request
+from indic_transliteration import sanscript
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import pipeline
 
-\section{Dataset Transformation: \texttt{merge\_new\_datasets.py}}
-\lstinputlisting[language=Python]{merge_new_datasets.py}
+app = Flask(__name__)
 
-\section{Inference Testing: \texttt{test\_finetuned.py}}
-\lstinputlisting[language=Python]{test_finetuned.py}
+DATASET_PATH = os.path.join(os.path.dirname(__file__), "mal_full_offensive_train.csv")
+FEEDBACK_LOG = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "finetuned_model")
+USER_CHAT_DATASET = os.path.join(os.path.dirname(__file__), "user_chat_dataset.csv")
+
+classifier = pipeline("text-classification", model=MODEL_DIR, top_k=None)
+messages = {}
+message_order = []
+USER_OVERRIDES = {}
+
+SAFE_LABELS = {"Not_offensive", "Not_in_intended_language"}
+LABEL_META = {
+    "Not_offensive": {"display": "Safe", "severity": "safe"},
+    "Not_in_intended_language": {"display": "Not Malayalam", "severity": "safe"},
+    "Off_target_group": {"display": "Group Hate Speech", "severity": "high"},
+    "Profanity": {"display": "Profanity / Vulgarity", "severity": "high"},
+    "Off_target_ind": {"display": "Personal Attack", "severity": "high"},
+}
+
+BASE_SLURS = ["..."]
+SAFE_EXCEPTIONS = {"kashuvandi", "cashew", "apple", "pooryum"}
+_vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 3))
+_vectorizer.fit(BASE_SLURS)
+_base_vectors = _vectorizer.transform(BASE_SLURS)
+
+
+def apply_cosine_similarity(text, threshold=0.85):
+    processed_words = []
+    for word in text.split():
+        clean_word = re.sub(r"(.)\1{2,}", r"\1\1", word.lower())
+        if clean_word in SAFE_EXCEPTIONS:
+            processed_words.append(word)
+            continue
+
+        word_vector = _vectorizer.transform([clean_word])
+        scores = cosine_similarity(word_vector, _base_vectors)[0]
+        best_index = scores.argmax()
+        processed_words.append(BASE_SLURS[best_index] if scores[best_index] >= threshold else word)
+
+    return " ".join(processed_words)
+
+
+def preprocess_text(text):
+    text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
+    text = text.lower()
+
+    replacements = {
+        r"\bchettan\b": "brother",
+        r"\bchetta\b": "brother",
+        r"\bpoda\b": "friend",
+        r"\bpodi\b": "friend",
+        r"\bpoo+\b": "flower",
+        r"\bpoor(?:i|yum)\s+(?:and\s+)?(?:curry|bhaji|masala|kazhikan)(?:um)?\b": "food",
+        r"\bninte\b": "your",
+        r"\bninak(?:k)?\b": "you",
+        r"\bda\b": "friend",
+    }
+    for pattern, replacement in replacements.items():
+        text = re.sub(pattern, replacement, text)
+
+    return apply_cosine_similarity(text)
+
+
+def classify(text, is_audio=False):
+    raw_text = text.strip().lower()
+    if raw_text in USER_OVERRIDES:
+        label = USER_OVERRIDES[raw_text]
+        is_offensive = label != "Not_offensive"
+        meta = LABEL_META.get(label, {"display": label, "severity": "high"})
+        return {
+            "label": label,
+            "label_display": meta["display"],
+            "offensive_score": 1.0 if is_offensive else 0.0,
+            "safe_score": 0.0 if is_offensive else 1.0,
+            "is_offensive": is_offensive,
+            "bucket": meta["severity"],
+            "all_scores": {label: 1.0},
+        }
+
+    processed_text = text.strip() if is_audio else preprocess_text(text)
+    results = classifier(processed_text)[0]
+    safe_score = sum(item["score"] for item in results if item["label"] in SAFE_LABELS)
+    offensive_score = 1.0 - safe_score
+    top = max(results, key=lambda item: item["score"])
+
+    if offensive_score <= 0.80:
+        bucket = "safe"
+    elif offensive_score < 0.95:
+        bucket = "high"
+    else:
+        bucket = "extreme"
+
+    meta = LABEL_META.get(top["label"], {"display": top["label"], "severity": bucket})
+    return {
+        "label": top["label"],
+        "label_display": meta["display"],
+        "offensive_score": round(offensive_score, 4),
+        "safe_score": round(safe_score, 4),
+        "is_offensive": offensive_score > 0.80,
+        "bucket": bucket,
+        "all_scores": {item["label"]: round(item["score"], 4) for item in results},
+    }
+
+
+@app.route("/api/send", methods=["POST"])
+def send_message():
+    data = request.get_json(force=True)
+    text = data.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "empty text"}), 400
+
+    result = classify(text, is_audio=data.get("is_audio", False))
+    message = {
+        "id": str(uuid.uuid4()),
+        "text": text,
+        "sender": data.get("sender", "me"),
+        "username": data.get("username", "User"),
+        "timestamp": datetime.now().strftime("%H:%M"),
+        "date": datetime.now().isoformat(),
+        "revealed": False,
+        "reported": False,
+        **result,
+    }
+    messages[message["id"]] = message
+    message_order.append(message["id"])
+
+    with open(USER_CHAT_DATASET, "a", newline="", encoding="utf-8") as file:
+        csv.writer(file, delimiter="\t").writerow([text, result["label"], "user_chat"])
+
+    return jsonify(message), 200
+
+
+@app.route("/api/messages", methods=["GET"])
+def get_messages():
+    return jsonify([messages[message_id] for message_id in message_order]), 200
+
+
+@app.route("/api/feedback", methods=["POST"])
+def feedback():
+    data = request.get_json(force=True)
+    message_id = data.get("message_id")
+    correct_label = data.get("correct_label", "Profanity")
+    if message_id not in messages:
+        return jsonify({"error": "message not found"}), 404
+
+    message = messages[message_id]
+    message["reported"] = True
+    USER_OVERRIDES[message["text"].strip().lower()] = correct_label
+
+    with open(DATASET_PATH, "a", newline="", encoding="utf-8") as file:
+        csv.writer(file, delimiter="\t").writerow([message["text"], correct_label, "feedback"])
+
+    with open(FEEDBACK_LOG, "a", newline="", encoding="utf-8") as file:
+        csv.writer(file).writerow([
+            datetime.now().isoformat(),
+            message_id,
+            message["text"],
+            correct_label,
+            message.get("offensive_score", ""),
+            message.get("label", ""),
+        ])
+
+    return jsonify({"status": "ok", "message": "feedback saved"}), 200
+\end{lstlisting}
 
 \end{document}

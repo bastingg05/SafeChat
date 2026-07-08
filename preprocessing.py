@@ -79,6 +79,8 @@ def preprocess_text(text):
     text = re.sub(r'\bchette\b', 'thendi', text)
     text = re.sub(r'\bmaitanti\b', 'mythandi', text)
     text = re.sub(r'\beta\b', 'eda', text)
+    text = re.sub(r'\bnjan\b', 'me', text)
+    text = re.sub(r'\bkanune+\b', 'seeing', text)
 
     # ── Neutralize casual slang bias ──
     text = re.sub(r'\bpoda\b', 'friend', text)
