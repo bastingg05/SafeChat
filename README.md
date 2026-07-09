@@ -49,8 +49,8 @@ pip install -r requirements.txt
 ## Creators
 * **Bastin George** – Student Intern, ICFOSS
 
-## Contribution
-* **Albin D. Mamachen** – ML/DL Intern, Language Technology, ICFOSS (Mentor and Contributor)
+## Mentor And Contributor
+* **Albin D. Mamachen** – ML/DL Intern, Language Technology, ICFOSS 
 
 ## Project Guidance and Support
 * **Dr. Rajeev R. R.** – Programme Head, Language Technology, ICFOSS
