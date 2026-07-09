@@ -1,40 +1,73 @@
 # SafeChat
+**Context-Aware Hate Speech Detection Platform for Malayalam**
 
-SafeChat is a powerful, context-aware hate speech detection platform specifically designed for Malayalam (Code-Mixed) language. It features a real-time web interface, a Telegram bot integration, and an AI brain powered by MuRIL (Multilingual Representations for Indian Languages).
+SafeChat is an advanced AI-powered moderation system specifically built to detect and filter offensive, toxic, and hate speech in Malayalam (Code-Mixed) and English. 
 
-## Features
-- **Context-Aware AI**: Powered by a fine-tuned MuRIL model trained on a massive dataset to deeply understand Malayalam slang and context.
-- **Telegram Bot Integration**: Automatically monitors Telegram groups and intercepts toxic text and voice notes.
-- **Voice Note Processing**: Uses Whisper STT (Speech-to-Text) to accurately transcribe and moderate voice messages.
-- **Real-time Keyword Gating**: Instant detection of extreme profanity, dynamically mapped across transliterations and native scripts .
-- **Continuous Reinforcement Learning**: The AI learns from user feedback in the Web UI and automatically retrains itself on shutdown to constantly improve its accuracy.
-- **Censor Bars**: Securely censors complete toxic sentences natively within Telegram to prevent tap-to-reveal workarounds.
+Traditional moderation bots struggle with "Code-Mixed" languages (e.g., Malayalam written in English letters) because they rely on simple keyword blocking. SafeChat solves this by using a deep-learning AI brain (MuRIL) that actually understands the *context* of a sentence, allowing it to differentiate between a friendly slang word and a toxic insult. 
 
-## Architecture
-- `chat_server.py`: Flask-based API server handling real-time chat, AI predictions, Whisper transcription, and feedback loop management.
-- `telegram_bot.py`: The live Telegram bot that intercepts messages, communicates with the SafeChat API, and enforces community guidelines.
-- `preprocessing.py`: Deep text standardization mapping casual conversational Malayalam (e.g., "poda", "da") into neutral vocabulary to prevent AI bias.
-- `train_model.py` / `update_brain.py`: Scripts handling the automated dataset holdout splitting and Full Parameter Fine-Tuning of the MuRIL brain.
+It actively monitors chat rooms (via a Web App or Telegram Bot) and intercepts offensive text and voice notes in real-time.
 
-## Setup Instructions
+---
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Key Features
+* **Telegram Bot Integration**: Acts as an automated group admin on Telegram, instantly deleting or censoring toxic messages the moment they are sent.
+* **Web Chat Interface**: A modern, real-time web application where users can chat safely. The AI acts as a live moderator, replacing offensive words with censor bars and providing a percentage confidence score on toxicity.
+* **Voice Note Processing (STT)**: Uses Whisper Speech-to-Text to actively transcribe and moderate voice messages sent in chat.
+* **Context-Aware AI**: Powered by a heavily fine-tuned MuRIL model that understands conversational Manglish, native Malayalam script, and English.
 
-2. **Configure Environment Variables**
-   Create a `.env` file in the root directory and add your Telegram bot token:
-   ```env
-   TELEGRAM_TOKEN=your_token_here
-   ```
+---
 
-3. **Start the SafeChat Brain & Web Interface**
-   ```bash
-   python chat_server.py
-   ```
+### Technical Specifications
+* **Based on** : MuRIL (Multilingual Representations for Indian Languages) AI engine
+* **Multi-Lingual recognition** : English + Malayalam (Code-Mixed / Manglish) + Native Malayalam Script
+* **Input methods** : Text messages, Voice Notes (Audio)
+* **Output actions** : Moderated Text, Telegram Censor Bars, Real-time API response
 
-4. **Start the Telegram Bot**
-   ```bash
-   python telegram_bot.py
-   ```
+## Prerequisites
+To run this project locally, you will need:
+* **Python 3.8+** installed on your system.
+* **FFmpeg** installed and added to your system PATH (required for processing Voice Notes).
+* A valid **Telegram Bot Token** (if using the Telegram integration).
+
+## Dependencies
+* Python 3.8+
+* FFmpeg
+* PyTorch & Transformers (HuggingFace)
+* PyPI dependencies listed in `requirements.txt`
+
+Installation of PyPI dependencies:
+```bash
+pip install -r requirements.txt  
+```
+
+## Built With
+* **MuRIL** : The underlying NLP framework used for the AI brain
+* **Whisper STT** : Used for Speech-to-Text transcription of voice notes
+* **Flask** : Web Development and API server backend
+* **python-telegram-bot** : Telegram integration
+
+## Creators
+* **Bastin George** – Student Intern, ICFOSS
+
+## Contribution
+* **Albin D. Mamachen** – ML/DL Intern, Language Technology, ICFOSS (Mentor and Contributor)
+
+## Project Guidance and Support
+* **Dr. Rajeev R. R.** – Programme Head, Language Technology, ICFOSS
+
+## Developers
+This project is Developed by **Bastin George, ICFOSS**
+
+---
+
+## Screenshots
+**Web UI Chat Section**
+![SafeChat Web UI](web_ui.png)
+*(The real-time web interface where the AI flags hate speech and applies censor bars.)*
+
+**Telegram Bot Moderation**
+![SafeChat Telegram Bot](telegram_bot.png)
+*(The Telegram bot actively monitoring a group and warning users for offensive messages.)*
+
+## License
+This project is licensed under the GNU - GPL v3 - see the (https://www.gnu.org/licenses/gpl-3.0.en.html) file for details.
