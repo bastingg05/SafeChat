@@ -1,7 +1,7 @@
 # SafeChat
-**Context-Aware Hate Speech Detection Platform for Malayalam**
+**Context-Aware Hate Speech Detection Platform for Code Mixed and Malayalam**
 
-SafeChat is an advanced AI-powered moderation system specifically built to detect and filter offensive, toxic, and hate speech in Malayalam (Code-Mixed) and English. 
+SafeChat is an advanced AI-powered moderation system specifically built to detect and filter offensive, toxic, and hate speech in Malayalam and Code-Mixed 
 
 Traditional moderation bots struggle with "Code-Mixed" languages (e.g., Malayalam written in English letters) because they rely on simple keyword blocking. SafeChat solves this by using a deep-learning AI brain (MuRIL) that actually understands the *context* of a sentence, allowing it to differentiate between a friendly slang word and a toxic insult. 
 
