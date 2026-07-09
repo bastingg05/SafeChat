@@ -17,7 +17,7 @@ from indic_transliteration import sanscript
 BASE_SLURS = [
     "myr", "myre", "thendi", "poori", "thayoli", "panni", "punda", "pundi",
     "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte",
-    "kazhutha", "naari", "themaradi", "andi", "vaanam",
+    "kazhutha", "naari", "nari", "ulle", "themaradi", "andi", "vaanam",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
 ]
@@ -112,6 +112,10 @@ def preprocess_text(text):
     text = re.sub(r'\bpoyi\b', 'went', text)   # went / left
     text = re.sub(r'\baayee\b', 'arrived', text)  # came / arrived
     text = re.sub(r'\bvanna\b', 'came', text)     # came
+
+    # ── Explicit slur additions to prevent bypasses ──
+    text = re.sub(r'\bulle\b', 'myre', text)      # Maps "ulle" directly to a strong known slur
+    text = re.sub(r'\bda\s+(nari|ulle|myre|poori|thayoli|panni|thendi|kunna|kundi)\b', r'\1', text) # Remove 'da' before a slur
 
     # ── Neutralize over-fitted pronouns/words ──
     text = re.sub(r'\bfriend(?:s)?\b', 'friend', text)
