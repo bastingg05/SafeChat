@@ -6,7 +6,7 @@ SafeChat is a powerful, context-aware hate speech detection platform specificall
 - **Context-Aware AI**: Powered by a fine-tuned MuRIL model trained on a massive dataset to deeply understand Malayalam slang and context.
 - **Telegram Bot Integration**: Automatically monitors Telegram groups and intercepts toxic text and voice notes.
 - **Voice Note Processing**: Uses Whisper STT (Speech-to-Text) to accurately transcribe and moderate voice messages.
-- **Real-time Keyword Gating**: Instant detection of extreme profanity, dynamically mapped across transliterations and native scripts (e.g., "വാണം").
+- **Real-time Keyword Gating**: Instant detection of extreme profanity, dynamically mapped across transliterations and native scripts .
 - **Continuous Reinforcement Learning**: The AI learns from user feedback in the Web UI and automatically retrains itself on shutdown to constantly improve its accuracy.
 - **Censor Bars**: Securely censors complete toxic sentences natively within Telegram to prevent tap-to-reveal workarounds.
 
