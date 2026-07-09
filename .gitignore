@@ -35,3 +35,6 @@ data_exploration/
 # System
 .DS_Store
 Thumbs.db
+
+# Reports
+icfoss_report.*
