@@ -38,3 +38,6 @@ Thumbs.db
 
 # Reports
 icfoss_report.*
+
+# Archived / retired scripts (kept locally only)
+archive/
