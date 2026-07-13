@@ -147,24 +147,29 @@ if not os.path.exists(MODEL_DIR):
 from preprocessing import preprocess_text
 print("Preprocessing module loaded.")
 
+from datasets import Dataset
+from transformers.pipelines.pt_utils import KeyDataset
+
 classifier = pipeline("text-classification", model=MODEL_DIR, top_k=None)
 print("Model loaded. Running inference with full preprocessing pipeline...\n")
 
 SAFE_LABELS = {"Not_offensive", "Not_in_intended_language"}
 
+# Preprocess all texts first
+processed_texts = [preprocess_text(row["text"]) for _, row in df_gen.iterrows()]
+hf_dataset = Dataset.from_dict({"text": processed_texts})
+
 results = []
-for _, row in df_gen.iterrows():
-    # Apply FULL preprocessing pipeline (same as chat_server.py)
-    processed = preprocess_text(row["text"])
-    raw = classifier(processed)
-    preds = raw[0] if isinstance(raw[0], list) else raw
+# Iterate through dataframe and predictions concurrently
+for (_, row), preds in zip(df_gen.iterrows(), classifier(KeyDataset(hf_dataset, "text"), batch_size=16)):
+    # preds is a list of dicts because top_k=None
     safe_score = sum(r["score"] for r in preds if r["label"] in SAFE_LABELS)
     offensive_score = 1.0 - safe_score
     is_offensive = offensive_score > 0.8
     predicted = "Offensive" if is_offensive else "Not_offensive"
     results.append({
         "text": row["text"],
-        "processed": processed,
+        "processed": processed_texts[len(results)], # Using index directly since we iterate synchronously
         "true_label": row["true_label"],
         "predicted": predicted,
         "offensive_score": round(offensive_score, 4),

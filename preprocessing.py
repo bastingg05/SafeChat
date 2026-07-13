@@ -136,6 +136,14 @@ def preprocess_text(text):
     text = re.sub(r'\basugam\b', 'friend', text)
     text = re.sub(r'\bmaryada(?:k|kku)?\b', 'friend', text)
 
+    # ── Neutralize affectionate terms (prevent false positives) ──
+    text = re.sub(r'\bkunje\b', 'friend', text)
+    text = re.sub(r'\bkunju\b', 'friend', text)
+    text = re.sub(r'\bmone\b', 'friend', text)
+    text = re.sub(r'\bmuthe\b', 'friend', text)
+    text = re.sub(r'\bkutta\b', 'friend', text)
+    text = re.sub(r'\bmakane\b', 'friend', text)
+
     # ── Cosine similarity catch-all ──
     text = apply_cosine_similarity(text)
     return text

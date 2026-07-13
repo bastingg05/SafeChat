@@ -32,18 +32,21 @@ classifier = pipeline("text-classification", model="./finetuned_model", top_k=1,
 texts = df_test["text"].tolist()
 true_labels = df_test["mapped_label"].tolist()
 
+from datasets import Dataset
+from transformers.pipelines.pt_utils import KeyDataset
+
 print("3. Running Inference to calculate scores...")
 batch_size = 32
 predicted_labels = []
 confidence_scores = []
 
-for i in tqdm(range(0, len(texts), batch_size)):
-    batch_texts = texts[i:i+batch_size]
-    preds = classifier(batch_texts)
-    for p in preds:
-        top_pred = p[0]
-        predicted_labels.append(top_pred['label'])
-        confidence_scores.append(top_pred['score'])
+# Use a Hugging Face Dataset to maximize efficiency and suppress warnings
+hf_dataset = Dataset.from_dict({"text": texts})
+
+for preds in tqdm(classifier(KeyDataset(hf_dataset, "text"), batch_size=batch_size), total=len(texts)):
+    top_pred = preds[0]
+    predicted_labels.append(top_pred['label'])
+    confidence_scores.append(top_pred['score'])
 
 print("\n========================================")
 print("PERFORMANCE METRICS")
