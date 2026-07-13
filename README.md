@@ -62,11 +62,20 @@ This project is Developed by **Bastin George, ICFOSS**
 
 ## Screenshots
 **Web UI Chat Section**
-![SafeChat Web UI](web_ui.png)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f31461da-a1c3-4558-9952-44da40e9c4a6"
+       alt="SafeChat Interface"
+       width="900">
+</p>
+
 *(The real-time web interface where the AI flags hate speech and applies censor bars.)*
 
 **Telegram Bot Moderation**
-![SafeChat Telegram Bot](telegram_bot.png)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/727583b5-68a0-405c-8dbc-8b59b36cb072"
+       alt="SafeChat Screenshot"
+       width="700">
+
 *(The Telegram bot actively monitoring a group and warning users for offensive messages.)*
 
 ## License
