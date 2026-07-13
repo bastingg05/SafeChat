@@ -67,7 +67,7 @@ This project is Developed by **Bastin George, ICFOSS**
        alt="SafeChat Interface"
        width="900">
 </p>
-
+</p>
 *(The real-time web interface where the AI flags hate speech and applies censor bars.)*
 
 **Telegram Bot Moderation**
@@ -75,7 +75,7 @@ This project is Developed by **Bastin George, ICFOSS**
   <img src="https://github.com/user-attachments/assets/727583b5-68a0-405c-8dbc-8b59b36cb072"
        alt="SafeChat Screenshot"
        width="700">
-
+</p>
 *(The Telegram bot actively monitoring a group and warning users for offensive messages.)*
 
 ## License
