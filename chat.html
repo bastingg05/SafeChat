@@ -710,6 +710,7 @@
   const API = (window.location.protocol === 'file:') ? 'http://127.0.0.1:5000' : window.location.origin;
   const ME_USERNAME = 'You';
   const feedbackItems = {};   // id → element in sidebar
+  const clearedMessageIds = new Set(); // Tracks messages cleared from the UI
   let lastInputWasVoice = false; // tracks if current input came from voice dictation
 
   /* ─── Sidebar Toggle (desktop push + mobile overlay) ── */
@@ -760,6 +761,14 @@
   /* ─── Clear Chat ──────────────────────────────────── */
   function clearChat() {
     const container = document.getElementById('messages-container');
+    
+    // Remember all currently rendered messages so the polling function ignores them
+    const currentMsgs = container.querySelectorAll('.msg-wrapper');
+    currentMsgs.forEach(el => {
+      const msgId = el.id.replace('msg-', '');
+      clearedMessageIds.add(msgId);
+    });
+
     // Keep the date divider and typing indicator
     const dateDivider = '<div class="date-divider"><span>Today</span></div>';
     const typingIndicator = `
@@ -785,6 +794,10 @@
 
   /* ─── Render a single message ─────────────────────── */
   function renderMessage(msg) {
+    if (clearedMessageIds.has(String(msg.id))) {
+      return; // Ignore messages that were visually cleared
+    }
+
     const container = document.getElementById('messages-container');
     const typing    = document.getElementById('typing');
     const side      = msg.sender === 'me' ? 'me' : 'other';
