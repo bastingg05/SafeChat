@@ -213,6 +213,24 @@
       color: var(--text-primary);
     }
 
+    /* ── Clear Chat button ────────────────────────── */
+    .clear-chat-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-left: 10px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .clear-chat-btn:hover {
+      background: rgba(255, 69, 58, 0.2);
+      color: var(--red-light);
+      border-color: rgba(255, 69, 58, 0.4);
+    }
+
     /* Messages container */
     .messages-container {
       flex: 1;
@@ -655,6 +673,7 @@
         <div class="chat-status">🟢 AI Moderator Active</div>
       </div>
       <div class="header-badge">🛡️ Guard ON</div>
+      <button class="clear-chat-btn" onclick="clearChat()" title="Clear chat visually">🧹 Clear</button>
     </div>
 
     <!-- Messages -->
@@ -736,6 +755,22 @@
     el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
     document.getElementById('toast-container').appendChild(el);
     setTimeout(() => el.remove(), 3200);
+  }
+
+  /* ─── Clear Chat ──────────────────────────────────── */
+  function clearChat() {
+    const container = document.getElementById('messages-container');
+    // Keep the date divider and typing indicator
+    const dateDivider = '<div class="date-divider"><span>Today</span></div>';
+    const typingIndicator = `
+      <div class="typing-indicator" id="typing">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    `;
+    container.innerHTML = dateDivider + typingIndicator;
+    showToast('Chat cleared visually', 'info');
   }
 
   /* ─── Auto-resize textarea ────────────────────────── */

@@ -18,7 +18,7 @@ BASE_SLURS = [
     "myr", "myre", "thendi", "poori", "thayoli", "panni", "punda", "pundi",
     "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte",
     "kazhutha", "naari", "themaradi", "andi", "vaanam",
-    "polayadi", "polayadimwone",
+    "polayadi", "polayadimwone", "naye", "maramakri",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
 ]
@@ -94,7 +94,9 @@ def preprocess_text(text):
     # ── Protect "eda / edaa" — casual Malayalam address term (like 'hey') ──
     # It is commonly used as a friendly address word, not an insult.
     text = re.sub(r'\beda+\b', 'friend', text)
-    text = re.sub(r'\bedi+\b', 'friend', text)
+    # ── Always protect "pattikutti" (puppy) ──
+    # A puppy is almost never a slur, so we blanket-replace it without needing context words
+    text = re.sub(r'\bpatti(?:kutti|kuttiye|kuttikku|kuttikal)\b', 'dog', text)
 
     # ── Protect "patti" when used as "dog" in location/neutral context ──
     # Handles Malayalam case suffixes: pattine, pattikku, pattiye, pattikal etc.
@@ -114,6 +116,20 @@ def preprocess_text(text):
         r'(?:oru|aa|ente|ninte|e|i)\s+' + PATTI_FORMS,
         'dog', text
     )
+
+    # ── Strip Intensifier Prefixes (para, perum, etc.) from Slurs ──
+    # e.g., paranari -> nari, perummyre -> myre
+    words = text.split()
+    for i, w in enumerate(words):
+        for prefix in ['para', 'perum', 'maha', 'verum']:
+            if w.startswith(prefix):
+                root = w[len(prefix):]
+                root_norm = re.sub(r'(.)\1+', r'\1', root)
+                if root in BASE_SLURS or root_norm in SLURS_NORMALIZED:
+                    words[i] = root
+                    break
+    text = " ".join(words)
+
 
     # ── Neutralize casual slang bias ──
     text = re.sub(r'\bpoda\b', 'friend', text)

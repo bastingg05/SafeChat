@@ -24,6 +24,25 @@ print("="*50)
 
 # Load and clean the full dataset
 df_raw = pd.read_csv(FULL_CSV, sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
+
+# Merge User Chat Dataset
+if os.path.exists("user_chat_dataset.csv"):
+    df_user = pd.read_csv("user_chat_dataset.csv", sep='\t', header=None, names=['text', 'label', 'extra'], on_bad_lines='skip')
+    df_raw = pd.concat([df_raw, df_user], ignore_index=True)
+
+# Merge Feedback Log
+if os.path.exists("feedback_log.csv"):
+    try:
+        df_feed = pd.read_csv("feedback_log.csv", header=None, on_bad_lines='skip')
+        if not df_feed.empty and len(df_feed.columns) >= 4:
+            df_f_clean = pd.DataFrame()
+            df_f_clean['text'] = df_feed[2]
+            df_f_clean['label'] = df_feed[3]
+            df_f_clean['extra'] = 'user_feedback'
+            df_raw = pd.concat([df_raw, df_f_clean], ignore_index=True)
+    except Exception as e:
+        print(f"Warning: Could not merge feedback_log.csv: {e}")
+
 df = df_raw.dropna(subset=['text', 'label']).drop_duplicates(subset=['text'], keep='last')
 
 label_mapping = {
@@ -43,6 +62,11 @@ df = df.dropna(subset=['mapped_label'])
 
 print(f"Total cleaned rows: {len(df)}")
 print(f"Label distribution:\n{df['mapped_label'].value_counts()}\n")
+
+# Filter out classes with fewer than 2 instances to prevent stratification errors
+class_counts = df['mapped_label'].value_counts()
+valid_classes = class_counts[class_counts >= 2].index
+df = df[df['mapped_label'].isin(valid_classes)]
 
 # Stratified split: 80% train, 20% holdout
 # Using a DIFFERENT seed from train_model.py (which uses seed=42) to ensure NO overlap
