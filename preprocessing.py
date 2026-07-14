@@ -18,6 +18,7 @@ BASE_SLURS = [
     "myr", "myre", "thendi", "poori", "thayoli", "panni", "punda", "pundi",
     "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte",
     "kazhutha", "naari", "themaradi", "andi", "vaanam",
+    "polayadi", "polayadimwone",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
 ]
@@ -57,14 +58,22 @@ def preprocess_text(text):
     text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
     
     # ── Smart Name Protection ──
-    # If a word starts with a Capital letter, we check if its lowercase version is a known slur.
-    # If it is a known slur (like "Thendi"), we do NOT protect it.
-    # If it is not a known slur (like "Cinta"), we protect it by replacing it with 'friend'.
+    # If a word starts with a Capital letter, check if it is a slur (even dragged).
+    # We normalize both the input word AND the slur list to single chars for comparison.
+    # e.g. "Pooriiii" → "pori" vs "poori"→"pori"  → match → NOT protected ✅
+    _norm = lambda s: re.sub(r'(.)\1+', r'\1', s.lower())
+    SLURS_NORMALIZED = set(_norm(s) for s in BASE_SLURS if s.isascii())
+
     words = text.split()
     new_words = []
     for w in words:
         if w and w[0].isupper() and w.isalpha():
-            if w.lower() not in BASE_SLURS:
+            w_lower   = w.lower()
+            w_normed  = _norm(w_lower)   # full collapse: pooriiii → pori
+            is_slur   = (w_lower  in BASE_SLURS or
+                         w_normed in BASE_SLURS or
+                         w_normed in SLURS_NORMALIZED)
+            if not is_slur:
                 new_words.append('friend')
                 continue
         new_words.append(w)
@@ -81,6 +90,30 @@ def preprocess_text(text):
     text = re.sub(r'\beta\b', 'eda', text)
     text = re.sub(r'\bnjan\b', 'me', text)
     text = re.sub(r'\bkanune+\b', 'seeing', text)
+
+    # ── Protect "eda / edaa" — casual Malayalam address term (like 'hey') ──
+    # It is commonly used as a friendly address word, not an insult.
+    text = re.sub(r'\beda+\b', 'friend', text)
+    text = re.sub(r'\bedi+\b', 'friend', text)
+
+    # ── Protect "patti" when used as "dog" in location/neutral context ──
+    # Handles Malayalam case suffixes: pattine, pattikku, pattiye, pattikal etc.
+    # e.g. "patti avide kidakkunnu" / "pattine kannan" = safe
+    PATTI_FORMS = r'\bpatti(?:ne|kku|ye|kal|ude|yude|yku|)\b'
+    PATTI_SAFE_WORDS = r'(?:avide|ividde|athu|ithu|und|undu|kidappund|kidakkunnu|vannu|poyi|odum|nottu|kanikunee|kanikune|kanikkam|kanikkan|cute|kollila|kollam|sadanam|enthu|entha|evidey|kand|kanda|kandal|kanan|vishyam|pwoli|ahnalo|ahnnnn|ahn|aan|aanu)'
+    text = re.sub(
+        PATTI_FORMS + r'\s+' + PATTI_SAFE_WORDS,
+        'dog', text
+    )
+    text = re.sub(
+        PATTI_SAFE_WORDS + r'\s+' + PATTI_FORMS,
+        'dog', text
+    )
+    # Prefix articles: oru/aa/ente/ninte/e/i + patti
+    text = re.sub(
+        r'(?:oru|aa|ente|ninte|e|i)\s+' + PATTI_FORMS,
+        'dog', text
+    )
 
     # ── Neutralize casual slang bias ──
     text = re.sub(r'\bpoda\b', 'friend', text)

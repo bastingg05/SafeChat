@@ -54,6 +54,17 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      /* Toggle animation */
+      transition: width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+                  min-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.25s ease;
+    }
+
+    .sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .sidebar-header {
@@ -182,6 +193,24 @@
       background: rgba(0,168,132,0.15);
       color: var(--green-light);
       border: 1px solid rgba(0,168,132,0.3);
+    }
+
+    /* ── Hamburger toggle button ──────────────────── */
+    .menu-toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 1.25rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .menu-toggle-btn:hover {
+      background: rgba(255,255,255,0.07);
+      color: var(--text-primary);
     }
 
     /* Messages container */
@@ -501,16 +530,59 @@
         right: 5vw;
       }
     }
+    /* ── Sidebar backdrop (mobile overlay) ────────── */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .sidebar-backdrop.visible {
+      opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar-backdrop { display: block; pointer-events: none; }
+      .sidebar-backdrop.visible { pointer-events: all; }
+
+      /* On mobile, sidebar floats over chat instead of pushing it */
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 100;
+        width: 85vw !important;
+        max-width: 340px;
+        transform: translateX(-110%);
+        transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.25s ease;
+        box-shadow: 4px 0 32px rgba(0,0,0,0.6);
+      }
+      .sidebar.collapsed {
+        width: 85vw !important;
+        min-width: unset !important;
+        transform: translateX(-110%);
+        opacity: 1; /* keep opacity — we use transform to hide */
+        pointer-events: none;
+      }
+      .sidebar:not(.collapsed) {
+        transform: translateX(0);
+        pointer-events: all;
+      }
+    }
   </style>
 </head>
 <body>
 
 <div id="toast-container"></div>
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
 <div class="app-shell">
 
   <!-- ══ SIDEBAR ══════════════════════════════════════ -->
-  <aside class="sidebar">
+  <aside class="sidebar collapsed" id="main-sidebar">
     <div class="sidebar-header">
       <div class="app-logo">🛡️</div>
       <div>
@@ -573,6 +645,10 @@
 
     <!-- Header -->
     <div class="chat-header">
+      <!-- Hamburger toggle -->
+      <button class="menu-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Panel">
+        ☰
+      </button>
       <div class="avatar av-green" style="width:40px;height:40px;font-size:1rem;">M</div>
       <div>
         <div class="chat-contact-name">Malayalam Chat Room</div>
@@ -616,6 +692,33 @@
   const ME_USERNAME = 'You';
   const feedbackItems = {};   // id → element in sidebar
   let lastInputWasVoice = false; // tracks if current input came from voice dictation
+
+  /* ─── Sidebar Toggle (desktop push + mobile overlay) ── */
+  function toggleSidebar() {
+    const sidebar   = document.getElementById('main-sidebar');
+    const btn       = document.getElementById('sidebar-toggle-btn');
+    const backdrop  = document.getElementById('sidebar-backdrop');
+    const isMobile  = window.innerWidth <= 768;
+    const isOpen    = !sidebar.classList.contains('collapsed');
+
+    if (isOpen) {
+      // Close sidebar
+      sidebar.classList.add('collapsed');
+      btn.innerHTML = '&#9776;'; // ☰
+      btn.title = 'Open Panel';
+      if (isMobile) {
+        backdrop.classList.remove('visible');
+      }
+    } else {
+      // Open sidebar
+      sidebar.classList.remove('collapsed');
+      btn.innerHTML = '&times;'; // ✕
+      btn.title = 'Close Panel';
+      if (isMobile) {
+        backdrop.classList.add('visible');
+      }
+    }
+  }
 
   /* ─── Severity config ────────────────────────────── */
   const SEVERITY = {
