@@ -12,3 +12,5 @@ python-telegram-bot==22.8
 python-dotenv==1.2.1
 torch>=2.0.0
 faster-whisper==1.2.1
+
+jellyfish

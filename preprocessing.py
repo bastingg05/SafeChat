@@ -11,6 +11,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from indic_transliteration import sanscript
 
+try:
+    import jellyfish
+except ImportError:
+    jellyfish = None
+
 # ─────────────────────────────────────────────
 # Slur vocabulary for cosine similarity matching
 # ─────────────────────────────────────────────
@@ -19,6 +24,7 @@ BASE_SLURS = [
     "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte",
     "kazhutha", "naari", "themaradi", "andi", "vaanam",
     "polayadi", "polayadimwone", "naye", "maramakri",
+    "poor", "koothi", "funda", "pary", "kaziveri", "andikkannan", "moron",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
 ]
@@ -28,10 +34,15 @@ SAFE_EXCEPTIONS = {
     "lab", "wifi", "homework", "project", "exam", "class", "photo"
 }
 
-_vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(2, 3))
-_vectorizer.fit(BASE_SLURS)
-_base_vectors = _vectorizer.transform(BASE_SLURS)
+# Precompute TF-IDF vectors for slurs
+_vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(2, 3))
+_base_vectors = _vectorizer.fit_transform(BASE_SLURS)
 
+# Precompute Phonetic Soundexes for slurs
+if jellyfish:
+    SLUR_SOUNDEXES = {jellyfish.soundex(s) for s in BASE_SLURS if s.isascii()}
+else:
+    SLUR_SOUNDEXES = set()
 
 def apply_cosine_similarity(text, threshold=0.85):
     words = text.split()
@@ -70,9 +81,24 @@ def preprocess_text(text):
         if w and w[0].isupper() and w.isalpha():
             w_lower   = w.lower()
             w_normed  = _norm(w_lower)   # full collapse: pooriiii → pori
+            
+            # 1. Exact and normalized match
             is_slur   = (w_lower  in BASE_SLURS or
                          w_normed in BASE_SLURS or
                          w_normed in SLURS_NORMALIZED)
+                         
+            # 2. Cosine similarity match (to catch misspellings like Kaziveri, Funda)
+            if not is_slur:
+                word_vector = _vectorizer.transform([w_lower])
+                similarities = cosine_similarity(word_vector, _base_vectors)[0]
+                if np.max(similarities) >= 0.85:
+                    is_slur = True
+                    
+            # 3. Phonetic match (Soundex - catches pary vs poori)
+            if not is_slur and jellyfish:
+                if jellyfish.soundex(w_lower) in SLUR_SOUNDEXES:
+                    is_slur = True
+                    
             if not is_slur:
                 new_words.append('friend')
                 continue
@@ -178,6 +204,40 @@ def preprocess_text(text):
     text = re.sub(r'\bninte\b', 'friend', text)
     text = re.sub(r'\bninak(?:k)?(?:oke|ku|kku|um|e|)\b', 'friend', text)  # ninakoke, ninakku, ninak
     text = re.sub(r'\bninak(?:k)?\s+oke\b', 'friend', text) # ninak oke (with space)
+    text = re.sub(r'\bninak(?:k)?\s+oke\b', 'friend', text) # ninak oke (with space)
+    
+    # Female pronouns (often tied to misogynistic bias in training data)
+    text = re.sub(r'\baval\b', 'friend', text)
+    text = re.sub(r'\bavalude\b', 'friend', text)
+    text = re.sub(r'\bavalk\b', 'friend', text)
+    text = re.sub(r'\bavalkk\b', 'friend', text)
+    text = re.sub(r'\bavale\b', 'friend', text)
+    text = re.sub(r'\bavalodu\b', 'friend', text)
+    text = re.sub(r'\bival\b', 'friend', text)
+    text = re.sub(r'\bivalude\b', 'friend', text)
+    text = re.sub(r'\bivalk\b', 'friend', text)
+    text = re.sub(r'\bivalkk\b', 'friend', text)
+    text = re.sub(r'\bivale\b', 'friend', text)
+    text = re.sub(r'\bivalodu\b', 'friend', text)
+    
+    # Group pronouns (often tied to communal bias)
+    text = re.sub(r'\bavar\b', 'friend', text)
+    text = re.sub(r'\bavarude\b', 'friend', text)
+    text = re.sub(r'\bavark\b', 'friend', text)
+    text = re.sub(r'\bavarkk\b', 'friend', text)
+    text = re.sub(r'\bavare\b', 'friend', text)
+    text = re.sub(r'\bavaroke\b', 'friend', text)
+    
+    # Male pronouns (often tied to targeted bullying bias)
+    text = re.sub(r'\bavan\b', 'friend', text)
+    text = re.sub(r'\bavante\b', 'friend', text)
+    text = re.sub(r'\bavane\b', 'friend', text)
+    text = re.sub(r'\bavank\b', 'friend', text)
+    text = re.sub(r'\bivan\b', 'friend', text)
+    text = re.sub(r'\bivante\b', 'friend', text)
+    text = re.sub(r'\bivane\b', 'friend', text)
+    
+    # Other over-fitted words
     text = re.sub(r'\benthinte\b', 'friend', text)
     text = re.sub(r'\bda\b', 'friend', text)
     text = re.sub(r'\bmari\b', 'friend', text)
