@@ -79,6 +79,17 @@ def apply_cosine_similarity(text, threshold=0.85):
                         processed_words.append(BASE_SLURS[root_best_idx])
                         stripped_match = True
                         break
+            if not stripped_match and jellyfish:
+                # Phonetic Fallback: If math missed it closely, check if it sounds exactly like a slur
+                sx = jellyfish.soundex(clean_word)
+                if sx in SLUR_SOUNDEXES:
+                    # Find the first base slur that matches this soundex and replace it
+                    for s in BASE_SLURS:
+                        if jellyfish.soundex(s) == sx:
+                            processed_words.append(s)
+                            stripped_match = True
+                            break
+                            
             if not stripped_match:
                 processed_words.append(word)
     return " ".join(processed_words)
@@ -88,43 +99,6 @@ def preprocess_text(text):
     # Convert native Malayalam script to English letters (Manglish) using OPTITRANS
     text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
     
-    # ── Smart Name Protection ──
-    # If a word starts with a Capital letter, check if it is a slur (even dragged).
-    # We normalize both the input word AND the slur list to single chars for comparison.
-    # e.g. "Pooriiii" → "pori" vs "poori"→"pori"  → match → NOT protected ✅
-    _norm = lambda s: re.sub(r'(.)\1+', r'\1', s.lower())
-    SLURS_NORMALIZED = set(_norm(s) for s in BASE_SLURS if s.isascii())
-
-    words = text.split()
-    new_words = []
-    for w in words:
-        if w and w[0].isupper() and w.isalpha():
-            w_lower   = w.lower()
-            w_normed  = _norm(w_lower)   # full collapse: pooriiii → pori
-            
-            # 1. Exact and normalized match
-            is_slur   = (w_lower  in BASE_SLURS or
-                         w_normed in BASE_SLURS or
-                         w_normed in SLURS_NORMALIZED)
-                         
-            # 2. Cosine similarity match (to catch misspellings like Kaziveri, Funda)
-            if not is_slur:
-                word_vector = _vectorizer.transform([w_lower])
-                similarities = cosine_similarity(word_vector, _base_vectors)[0]
-                if np.max(similarities) >= 0.85:
-                    is_slur = True
-                    
-            # 3. Phonetic match (Soundex - catches pary vs poori)
-            if not is_slur and jellyfish:
-                if jellyfish.soundex(w_lower) in SLUR_SOUNDEXES:
-                    is_slur = True
-                    
-            if not is_slur:
-                new_words.append('friend')
-                continue
-        new_words.append(w)
-    text = " ".join(new_words)
-
     text = text.lower()
     
     # ── Explicit Disambiguation Rules ──
