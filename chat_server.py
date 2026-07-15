@@ -183,8 +183,9 @@ def classify(text: str, is_audio: bool = False) -> dict:
     # force the offensive score high.
     if not is_audio:
         words = processed_text.split()
-        # Check if any BASE_SLUR is a substring of any word in the text
-        if any(slur in word for word in words for slur in BASE_SLURS):
+        # Check if any BASE_SLUR is an EXACT match of any word in the processed text.
+        # (We removed the substring 'in' check so names like 'Poorna' aren't falsely flagged as 'poor').
+        if any(slur == word for word in words for slur in BASE_SLURS):
             if offensive_score < 0.8:
                 print(f"Keyword Gating triggered! Forced Profanity for text containing slur: {processed_text}")
                 offensive_score = 0.99
