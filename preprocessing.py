@@ -21,9 +21,9 @@ except ImportError:
 # ─────────────────────────────────────────────
 BASE_SLURS = [
     "myr", "myre", "thendi", "poori", "thayoli", "panni", "punda", "pundi",
-    "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte",
+    "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte", "naya",
     "kazhutha", "naari", "themaradi", "andi", "vaanam",
-    "polayadi", "polayadimwone", "naye", "maramakri",
+    "polayadi", "polayadimwone", "naye", "maramakri", "mayir", "mayire",
     "poor", "koothi", "funda", "pary", "kaziveri", "andikkannan", "moron",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
@@ -60,7 +60,27 @@ def apply_cosine_similarity(text, threshold=0.85):
         if best_score >= threshold:
             processed_words.append(BASE_SLURS[best_idx])
         else:
-            processed_words.append(word)
+            # Suffix Stripper Fallback: Strip common Malayalam suffixes and re-evaluate
+            suffixes = ["yod", "yode", "kku", "ude", "yude", "ne", "aye", "iye", "mar", "kal", "k"]
+            stripped_match = False
+            for suf in suffixes:
+                if clean_word.endswith(suf) and len(clean_word) > len(suf) + 2:
+                    root = clean_word[:-len(suf)]
+                    # Check exact match first
+                    if root in BASE_SLURS:
+                        processed_words.append(root)
+                        stripped_match = True
+                        break
+                    # If not exact, check cosine of the root
+                    root_vec = _vectorizer.transform([root])
+                    root_sims = cosine_similarity(root_vec, _base_vectors)[0]
+                    root_best_idx = np.argmax(root_sims)
+                    if root_sims[root_best_idx] >= threshold:
+                        processed_words.append(BASE_SLURS[root_best_idx])
+                        stripped_match = True
+                        break
+            if not stripped_match:
+                processed_words.append(word)
     return " ".join(processed_words)
 
 
@@ -144,16 +164,26 @@ def preprocess_text(text):
     )
 
     # ── Strip Intensifier Prefixes (para, perum, etc.) from Slurs ──
-    # e.g., paranari -> nari, perummyre -> myre
+    # e.g., paranari -> nari, perummyre -> myre, danmayire -> mayire
     words = text.split()
     for i, w in enumerate(words):
-        for prefix in ['para', 'perum', 'maha', 'verum']:
-            if w.startswith(prefix):
+        for prefix in ['para', 'perum', 'maha', 'verum', 'dan', 'da', 'eda', 'poda']:
+            if w.startswith(prefix) and len(w) > len(prefix) + 2:
                 root = w[len(prefix):]
                 root_norm = re.sub(r'(.)\1+', r'\1', root)
+                
+                # Check if root is in BASE_SLURS directly, or via soundex/cosine
                 if root in BASE_SLURS or root_norm in SLURS_NORMALIZED:
                     words[i] = root
                     break
+                
+                # Also run cosine similarity on the stripped root to be safe
+                root_vec = _vectorizer.transform([root])
+                root_sims = cosine_similarity(root_vec, _base_vectors)[0]
+                if np.max(root_sims) >= 0.85:
+                    words[i] = BASE_SLURS[np.argmax(root_sims)]
+                    break
+                    
     text = " ".join(words)
 
 
