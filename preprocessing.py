@@ -79,6 +79,17 @@ def apply_cosine_similarity(text, threshold=0.85):
                         processed_words.append(BASE_SLURS[root_best_idx])
                         stripped_match = True
                         break
+            if not stripped_match and jellyfish:
+                # Phonetic Fallback: If math missed it closely, check if it sounds exactly like a slur
+                sx = jellyfish.soundex(clean_word)
+                if sx in SLUR_SOUNDEXES:
+                    # Find the first base slur that matches this soundex and replace it
+                    for s in BASE_SLURS:
+                        if jellyfish.soundex(s) == sx:
+                            processed_words.append(s)
+                            stripped_match = True
+                            break
+                            
             if not stripped_match:
                 processed_words.append(word)
     return " ".join(processed_words)
