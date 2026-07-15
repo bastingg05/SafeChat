@@ -672,7 +672,7 @@
         <div class="chat-contact-name">Malayalam Chat Room</div>
         <div class="chat-status">🟢 AI Moderator Active</div>
       </div>
-      <div class="header-badge">🛡️ Guard ON</div>
+      <button class="header-badge" id="guard-toggle-btn" onclick="toggleGuard()" title="Toggle AI Moderation" style="cursor: pointer; border: none; font-family: inherit; font-size: 0.8rem; font-weight: 600;">🛡️ Guard ON</button>
       <button class="clear-chat-btn" onclick="clearChat()" title="Clear chat visually">🧹 Clear</button>
     </div>
 
@@ -712,6 +712,7 @@
   const feedbackItems = {};   // id → element in sidebar
   const clearedMessageIds = new Set(); // Tracks messages cleared from the UI
   let lastInputWasVoice = false; // tracks if current input came from voice dictation
+  let isGuardOn = true; // tracks if the AI moderation guard is active
 
   /* ─── Sidebar Toggle (desktop push + mobile overlay) ── */
   function toggleSidebar() {
@@ -780,6 +781,26 @@
     `;
     container.innerHTML = dateDivider + typingIndicator;
     showToast('Chat cleared visually', 'info');
+  }
+
+  /* ─── Toggle Guard ────────────────────────────────── */
+  function toggleGuard() {
+    isGuardOn = !isGuardOn;
+    const btn = document.getElementById('guard-toggle-btn');
+    const statusText = document.querySelector('.chat-status');
+    if (isGuardOn) {
+      btn.innerText = '🛡️ Guard ON';
+      btn.style.background = '';
+      btn.style.color = '';
+      statusText.innerHTML = '🟢 AI Moderator Active';
+      showToast('AI Moderation Enabled', 'success');
+    } else {
+      btn.innerText = '⚠️ Guard OFF';
+      btn.style.background = 'rgba(255, 69, 58, 0.2)';
+      btn.style.color = 'var(--red-light)';
+      statusText.innerHTML = '🔴 AI Moderator Disabled';
+      showToast('AI Moderation Disabled', 'danger');
+    }
   }
 
   /* ─── Auto-resize textarea ────────────────────────── */
@@ -1013,7 +1034,13 @@
       const r = await fetch(`${API}/api/send`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ text, sender: 'me', username: ME_USERNAME, is_audio: lastInputWasVoice })
+        body: JSON.stringify({ 
+          text, 
+          sender: 'me', 
+          username: ME_USERNAME, 
+          is_audio: lastInputWasVoice, 
+          guard_on: isGuardOn 
+        })
       });
 
       if (!r.ok) throw new Error('Server error');

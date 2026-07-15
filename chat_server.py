@@ -243,11 +243,20 @@ def send_message():
     sender   = data.get("sender", "me")       # "me" = right side, "other" = left side
     username = data.get("username", "User")
     is_audio = data.get("is_audio", False)
+    guard_on = data.get("guard_on", True)
 
     if not text:
         return jsonify({"error": "empty text"}), 400
 
-    result = classify(text, is_audio=is_audio)
+    if guard_on:
+        result = classify(text, is_audio=is_audio)
+    else:
+        result = {
+            "label": "Not_offensive",
+            "offensive_score": 0.0,
+            "bucket": "safe",
+            "transliterated": text
+        }
     
     # Save user chat without duplication
     if text not in saved_chat_texts:
