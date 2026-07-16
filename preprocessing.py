@@ -22,21 +22,26 @@ except ImportError:
 BASE_SLURS = [
     "myr", "myre", "thendi", "poori", "thayoli", "panni", "punda", "pundi",
     "kundan", "kunna", "kundi", "patti", "kazhuveri", "nayinte", "naya",
-    "kazhutha", "naari", "themaradi", "andi", "vaanam",
+    "kazhutha", "naari", "nari", "paranari", "themaradi", "andi", "vaanam",
     "polayadi", "polayadimwone", "naye", "maramakri", "mayir", "mayire",
-    "poor", "koothi", "funda", "pary", "kaziveri", "andikkannan", "moron",
+    "poor", "koothi", "funda", "funde", "funfde", "punde", "pundee", "pary", "kaziveri", "andikkannan", "moron",
     "തെണ്ടി", "മൈര്", "പൂറി", "തായോളി", "കുണ്ടൻ", "പന്നി",
     "നാറി", "വെടി", "കഴുവേറി", "തെമ്മാടി", "പട്ടി", "കഴുത", "വാണം"
 ]
 
 SAFE_EXCEPTIONS = {
     "kashuvandi", "cashew", "apple", "pooryum",
-    "lab", "wifi", "homework", "project", "exam", "class", "photo"
+    "lab", "wifi", "homework", "project", "exam", "class", "photo",
+    "panniyannu", "panniyanu", "paniyanu", "negha", "elsa", "amarnath", "juliyet"
 }
 
 # Precompute TF-IDF vectors for slurs
 _vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(2, 3))
 _base_vectors = _vectorizer.fit_transform(BASE_SLURS)
+
+# Precompute normalized slurs (collapse repeating characters)
+_norm = lambda s: re.sub(r'(.)\1+', r'\1', s.lower())
+SLURS_NORMALIZED = set(_norm(s) for s in BASE_SLURS if s.isascii())
 
 # Precompute Phonetic Soundexes for slurs
 if jellyfish:
@@ -99,43 +104,7 @@ def preprocess_text(text):
     # Convert native Malayalam script to English letters (Manglish) using OPTITRANS
     text = sanscript.transliterate(text, sanscript.MALAYALAM, sanscript.OPTITRANS)
     
-    # ── Smart Name Protection ──
-    # If a word starts with a Capital letter, check if it is a slur (even dragged).
-    # We normalize both the input word AND the slur list to single chars for comparison.
-    # e.g. "Pooriiii" → "pori" vs "poori"→"pori"  → match → NOT protected ✅
-    _norm = lambda s: re.sub(r'(.)\1+', r'\1', s.lower())
-    SLURS_NORMALIZED = set(_norm(s) for s in BASE_SLURS if s.isascii())
-
-    words = text.split()
-    new_words = []
-    for w in words:
-        if w and w[0].isupper() and w.isalpha():
-            w_lower   = w.lower()
-            w_normed  = _norm(w_lower)   # full collapse: pooriiii → pori
-            
-            # 1. Exact and normalized match
-            is_slur   = (w_lower  in BASE_SLURS or
-                         w_normed in BASE_SLURS or
-                         w_normed in SLURS_NORMALIZED)
-                         
-            # 2. Cosine similarity match (to catch misspellings like Kaziveri, Funda)
-            if not is_slur:
-                word_vector = _vectorizer.transform([w_lower])
-                similarities = cosine_similarity(word_vector, _base_vectors)[0]
-                if np.max(similarities) >= 0.85:
-                    is_slur = True
-                    
-            # 3. Phonetic match (Soundex - catches pary vs poori)
-            if not is_slur and jellyfish:
-                if jellyfish.soundex(w_lower) in SLUR_SOUNDEXES:
-                    is_slur = True
-                    
-            if not is_slur:
-                new_words.append('friend')
-                continue
-        new_words.append(w)
-    text = " ".join(new_words)
-
+    # Convert everything to lowercase immediately to prevent capitalization bypasses
     text = text.lower()
     
     # ── Explicit Disambiguation Rules ──
@@ -155,11 +124,21 @@ def preprocess_text(text):
     # A puppy is almost never a slur, so we blanket-replace it without needing context words
     text = re.sub(r'\bpatti(?:kutti|kuttiye|kuttikku|kuttikal)\b', 'dog', text)
 
+    # ── Protect "patti" when used as "about" (regarding) ──
+    # e.g., "nine patti paranjath" = "said about you"
+    PATTI_ABOUT_WORDS = r'(?:paranjath|paranju|parayuva|chothichu|chothichath|samsarichath|samsarichu|arinjath|arinju|parayunnath)'
+    text = re.sub(
+        r'\bpatti(?:yanu|ye|)\b\s+' + PATTI_ABOUT_WORDS,
+        'about', text
+    )
+    text = re.sub(
+        PATTI_ABOUT_WORDS + r'\s+\bpatti(?:yanu|ye|)\b',
+        'about', text
+    )
+
     # ── Protect "patti" when used as "dog" in location/neutral context ──
-    # Handles Malayalam case suffixes: pattine, pattikku, pattiye, pattikal etc.
-    # e.g. "patti avide kidakkunnu" / "pattine kannan" = safe
-    PATTI_FORMS = r'\bpatti(?:ne|kku|ye|kal|ude|yude|yku|)\b'
-    PATTI_SAFE_WORDS = r'(?:avide|ividde|athu|ithu|und|undu|kidappund|kidakkunnu|vannu|poyi|odum|nottu|kanikunee|kanikune|kanikkam|kanikkan|cute|kollila|kollam|sadanam|enthu|entha|evidey|kand|kanda|kandal|kanan|vishyam|pwoli|ahnalo|ahnnnn|ahn|aan|aanu)'
+    PATTI_FORMS = r'\bpatti+(?:ne|kku|ye|kal|ude|yude|yku|yanu|)\b'
+    PATTI_SAFE_WORDS = r'(?:avide|ividde|athu|ithu|und|undu|kidappund|kidakkunnu|vannu|poyi|odum|nottu|kanikunee|kanikune|kanikkam|kanikkan|cute|kollila|kollam|sadanam|enthu|entha|evidey|kand|kanda|kandal|kanan|vishyam|pwoli|ahnalo|ahnnnn|ahn|aan|aanu|valare|nalathanu|nallathanu)'
     text = re.sub(
         PATTI_FORMS + r'\s+' + PATTI_SAFE_WORDS,
         'dog', text

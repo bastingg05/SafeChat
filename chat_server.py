@@ -13,6 +13,7 @@ import os
 import uuid
 from datetime import datetime
 from flask import Flask, request, jsonify, make_response, send_file
+from flask_socketio import SocketIO
 from transformers import pipeline
 import re
 import signal
@@ -33,7 +34,10 @@ if ffmpeg_bin not in os.environ.get("PATH", ""):
 # ─────────────────────────────────────────────
 # App setup
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Manual CORS handler — needed because file:// sends Origin: null
 # which Flask-CORS doesn't handle properly with wildcards
@@ -55,6 +59,8 @@ def handle_options():
 
 DATASET_PATH = os.path.join(os.path.dirname(__file__), "mal_full_offensive_train.csv")
 FEEDBACK_LOG  = os.path.join(os.path.dirname(__file__), "feedback_log.csv")
+# Dynamically protect the names of logged-in users from AI bias
+ACTIVE_USERNAMES = set()
 MODEL_DIR     = os.path.join(os.path.dirname(__file__), "finetuned_model")
 USER_CHAT_DATASET = os.path.join(os.path.dirname(__file__), "user_chat_dataset.csv")
 
@@ -172,7 +178,19 @@ def classify(text: str, is_audio: bool = False) -> dict:
             "all_scores": {"Not_offensive": 1.0}
         }
 
-    raw = classifier(processed_text)
+    # Protect safe words/names from AI bias by replacing them with a neutral token
+    from preprocessing import SAFE_EXCEPTIONS
+    import re
+    
+    ai_input_text = processed_text
+    for safe_word in SAFE_EXCEPTIONS:
+        ai_input_text = re.sub(rf'\b{re.escape(safe_word)}\b', 'friend', ai_input_text)
+        
+    for active_user in ACTIVE_USERNAMES:
+        if active_user:
+            ai_input_text = re.sub(rf'\b{re.escape(active_user)}\b', 'friend', ai_input_text)
+
+    raw = classifier(ai_input_text)
     results = raw[0] if (raw and isinstance(raw[0], list)) else raw
 
     safe_score      = sum(r["score"] for r in results if r["label"] in SAFE_LABELS)
@@ -182,9 +200,16 @@ def classify(text: str, is_audio: bool = False) -> dict:
     # If a known slur survives preprocessing but the AI misses it due to bias,
     # force the offensive score high.
     if not is_audio:
-        words = processed_text.split()
-        # Check if any BASE_SLUR is a substring of any word in the text
-        if any(slur in word for word in words for slur in BASE_SLURS):
+        words = ai_input_text.split()
+        is_slur_found = False
+        
+        for slur in BASE_SLURS:
+            pattern = r"\s*".join([re.escape(c) + "+" for c in slur])
+            if re.search(pattern, ai_input_text):
+                is_slur_found = True
+                break
+                
+        if is_slur_found:
             if offensive_score < 0.8:
                 print(f"Keyword Gating triggered! Forced Profanity for text containing slur: {processed_text}")
                 offensive_score = 0.99
@@ -240,10 +265,13 @@ def send_message():
     """
     data     = request.get_json(force=True)
     text     = data.get("text", "").strip()
-    sender   = data.get("sender", "me")       # "me" = right side, "other" = left side
-    username = data.get("username", "User")
+    client_id = data.get("client_id", "unknown")
+    username = data.get("username", "Guest").strip()
     is_audio = data.get("is_audio", False)
     guard_on = data.get("guard_on", True)
+    
+    if username and username.lower() != "guest":
+        ACTIVE_USERNAMES.add(username.lower())
 
     if not text:
         return jsonify({"error": "empty text"}), 400
@@ -254,6 +282,7 @@ def send_message():
         result = {
             "label": "Not_offensive",
             "offensive_score": 0.0,
+            "is_offensive": False,
             "bucket": "safe",
             "transliterated": text
         }
@@ -268,7 +297,7 @@ def send_message():
     msg = {
         "id":         str(uuid.uuid4()),
         "text":       text,
-        "sender":     sender,
+        "client_id":  client_id,
         "username":   username,
         "timestamp":  datetime.now().strftime("%H:%M"),
         "date":       datetime.now().isoformat(),
@@ -282,6 +311,9 @@ def send_message():
     message_order.append(msg["id"])
 
     save_chat_history()
+
+    # Broadcast to all connected clients so they see it instantly
+    socketio.emit('new_message', msg)
 
     return jsonify(msg), 200
 
@@ -407,8 +439,8 @@ def reveal():
 def stats():
     """Quick summary stats for the dashboard badge."""
     total     = len(messages)
-    offensive = sum(1 for m in messages.values() if m["is_offensive"])
-    reported  = sum(1 for m in messages.values() if m["reported"])
+    offensive = sum(1 for m in messages.values() if m.get("is_offensive", False))
+    reported  = sum(1 for m in messages.values() if m.get("reported", False))
     classified_hate     = sum(1 for m in messages.values() if m.get("user_classification") == "hate_speech")
     classified_not_hate = sum(1 for m in messages.values() if m.get("user_classification") == "not_hate_speech")
     return jsonify({
@@ -482,6 +514,6 @@ def graceful_shutdown(signum, frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
-    print("\nChat server running at http://127.0.0.1:5000")
+    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Booting chat server with WebSockets at http://127.0.0.1:5000")
     print("Open chat.html in your browser to start chatting.\n")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
